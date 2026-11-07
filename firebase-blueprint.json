@@ -1,0 +1,257 @@
+{
+  "entities": {
+    "User": {
+      "title": "User",
+      "description": "Registered user profile storing authentication and active role states",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string", "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "name": { "type": "string", "maxLength": 100 },
+        "email": { "type": "string", "maxLength": 150 },
+        "phone": { "type": "string", "maxLength": 20 },
+        "enabledRoles": { "type": "array" },
+        "activeRole": { "type": "string", "enum": ["worker", "employer"] },
+        "profilePhoto": { "type": "string", "maxLength": 50000 },
+        "preferredLanguage": { "type": "string", "maxLength": 30 },
+        "accountStatus": { "type": "string", "enum": ["active", "suspended", "pending"] },
+        "onboardingCompleted": { "type": "boolean" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["uid", "name", "enabledRoles", "activeRole", "accountStatus", "onboardingCompleted", "createdAt", "updatedAt"]
+    },
+    "WorkerProfile": {
+      "title": "WorkerProfile",
+      "description": "Comprehensive job seeker onboarding and profile data",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string", "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "fullName": { "type": "string", "maxLength": 100 },
+        "dateOfBirth": { "type": "string", "maxLength": 10 },
+        "ageEligibilityConfirmed": { "type": "boolean" },
+        "gender": { "type": "string", "enum": ["male", "female", "other"] },
+        "profilePhoto": { "type": "string", "maxLength": 50000 },
+        "isPhotoVerifiedReal": { "type": "boolean" },
+        "country": { "type": "string", "maxLength": 50 },
+        "state": { "type": "string", "maxLength": 60 },
+        "district": { "type": "string", "maxLength": 60 },
+        "city": { "type": "string", "maxLength": 60 },
+        "area": { "type": "string", "maxLength": 100 },
+        "pincode": { "type": "string", "maxLength": 6, "pattern": "^[0-9]{6}$" },
+        "lat": { "type": "number" },
+        "lng": { "type": "number" },
+        "preferredLocations": { "type": "array" },
+        "education": { "type": "string", "maxLength": 60 },
+        "skills": { "type": "array" },
+        "customSkills": { "type": "array" },
+        "experience": { "type": "string", "maxLength": 50 },
+        "jobPreferences": { "type": "object" },
+        "resumeUrl": { "type": "string", "maxLength": 500000 },
+        "resumeName": { "type": "string", "maxLength": 150 },
+        "submittedAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["uid", "fullName", "ageEligibilityConfirmed", "gender", "state", "pincode", "education", "experience", "submittedAt", "updatedAt"]
+    },
+    "EmployerProfile": {
+      "title": "EmployerProfile",
+      "description": "Business employer onboarding profile with verification status",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string", "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "ownerName": { "type": "string", "maxLength": 100 },
+        "ownerEmail": { "type": "string", "maxLength": 150 },
+        "ownerPhone": { "type": "string", "maxLength": 20 },
+        "designation": { "type": "string", "maxLength": 80 },
+        "businessName": { "type": "string", "maxLength": 150 },
+        "businessCategory": { "type": "string", "maxLength": 60 },
+        "businessDescription": { "type": "string", "maxLength": 1000 },
+        "businessLogo": { "type": "string", "maxLength": 50000 },
+        "website": { "type": "string", "maxLength": 200 },
+        "state": { "type": "string", "maxLength": 60 },
+        "district": { "type": "string", "maxLength": 60 },
+        "city": { "type": "string", "maxLength": 60 },
+        "area": { "type": "string", "maxLength": 100 },
+        "pincode": { "type": "string", "maxLength": 6, "pattern": "^[0-9]{6}$" },
+        "lat": { "type": "number" },
+        "lng": { "type": "number" },
+        "businessAddress": { "type": "string", "maxLength": 250 },
+        "verificationStatus": { "type": "string", "enum": ["Pending", "Verified", "Rejected", "Requires additional information"] },
+        "emailVerified": { "type": "boolean" },
+        "phoneVerified": { "type": "boolean" },
+        "documentNumber": { "type": "string", "maxLength": 60 },
+        "submittedAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["uid", "ownerName", "ownerEmail", "businessName", "businessCategory", "state", "pincode", "verificationStatus", "submittedAt", "updatedAt"]
+    },
+    "Job": {
+      "title": "Job",
+      "description": "Employer job listing posting across India",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128 },
+        "employerId": { "type": "string", "maxLength": 128 },
+        "employerName": { "type": "string", "maxLength": 150 },
+        "employerLogo": { "type": "string", "maxLength": 50000 },
+        "isEmployerVerified": { "type": "boolean" },
+        "title": { "type": "string", "maxLength": 120 },
+        "category": { "type": "string", "maxLength": 60 },
+        "description": { "type": "string", "maxLength": 3000 },
+        "responsibilities": { "type": "string", "maxLength": 2000 },
+        "requiredSkills": { "type": "array" },
+        "education": { "type": "string", "maxLength": 60 },
+        "experience": { "type": "string", "maxLength": 50 },
+        "vacancies": { "type": "number" },
+        "minSalary": { "type": "number" },
+        "maxSalary": { "type": "number" },
+        "paymentFrequency": { "type": "string", "maxLength": 30 },
+        "employmentType": { "type": "string", "maxLength": 40 },
+        "workingHours": { "type": "string", "maxLength": 80 },
+        "state": { "type": "string", "maxLength": 60 },
+        "district": { "type": "string", "maxLength": 60 },
+        "city": { "type": "string", "maxLength": 60 },
+        "area": { "type": "string", "maxLength": 100 },
+        "pincode": { "type": "string", "maxLength": 6 },
+        "lat": { "type": "number" },
+        "lng": { "type": "number" },
+        "benefits": { "type": "array" },
+        "deadline": { "type": "string", "maxLength": 20 },
+        "status": { "type": "string", "enum": ["active", "draft", "paused", "closed"] },
+        "applicationsCount": { "type": "number" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "employerId", "employerName", "title", "category", "status", "createdAt", "updatedAt"]
+    },
+    "Application": {
+      "title": "Application",
+      "description": "Worker application record for an active job",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128 },
+        "jobId": { "type": "string", "maxLength": 128 },
+        "jobTitle": { "type": "string", "maxLength": 120 },
+        "employerId": { "type": "string", "maxLength": 128 },
+        "employerName": { "type": "string", "maxLength": 150 },
+        "workerId": { "type": "string", "maxLength": 128 },
+        "workerName": { "type": "string", "maxLength": 100 },
+        "workerPhoto": { "type": "string", "maxLength": 50000 },
+        "workerSkills": { "type": "array" },
+        "workerExperience": { "type": "string", "maxLength": 50 },
+        "workerEducation": { "type": "string", "maxLength": 60 },
+        "workerCity": { "type": "string", "maxLength": 60 },
+        "workerState": { "type": "string", "maxLength": 60 },
+        "workerPincode": { "type": "string", "maxLength": 6 },
+        "candidateNote": { "type": "string", "maxLength": 1000 },
+        "resumeUrl": { "type": "string", "maxLength": 500000 },
+        "resumeName": { "type": "string", "maxLength": 150 },
+        "status": { "type": "string", "enum": ["Applied", "Under Review", "Shortlisted", "Interview Scheduled", "Selected", "Rejected", "Withdrawn"] },
+        "interviewDetails": { "type": "object" },
+        "appliedAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "jobId", "employerId", "workerId", "workerName", "status", "appliedAt", "updatedAt"]
+    },
+    "Conversation": {
+      "title": "Conversation",
+      "description": "Direct message thread between worker and employer",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128 },
+        "participants": { "type": "array" },
+        "participantDetails": { "type": "object" },
+        "lastMessage": { "type": "string", "maxLength": 500 },
+        "lastSenderId": { "type": "string", "maxLength": 128 },
+        "lastMessageAt": { "type": "string", "format": "date-time" },
+        "unreadBy": { "type": "array" },
+        "isBlocked": { "type": "boolean" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "participants", "createdAt", "updatedAt"]
+    },
+    "Message": {
+      "title": "Message",
+      "description": "Individual chat message within a conversation",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128 },
+        "conversationId": { "type": "string", "maxLength": 128 },
+        "senderId": { "type": "string", "maxLength": 128 },
+        "receiverId": { "type": "string", "maxLength": 128 },
+        "text": { "type": "string", "maxLength": 2000 },
+        "read": { "type": "boolean" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "conversationId", "senderId", "receiverId", "text", "createdAt"]
+    },
+    "Notification": {
+      "title": "Notification",
+      "description": "In-app alerts for applications, status changes, and messages",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128 },
+        "recipientId": { "type": "string", "maxLength": 128 },
+        "title": { "type": "string", "maxLength": 150 },
+        "message": { "type": "string", "maxLength": 500 },
+        "type": { "type": "string", "maxLength": 50 },
+        "read": { "type": "boolean" },
+        "link": { "type": "string", "maxLength": 100 },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "recipientId", "title", "message", "type", "read", "createdAt"]
+    },
+    "SavedJob": {
+      "title": "SavedJob",
+      "description": "Bookmarked job listing by worker",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128 },
+        "userId": { "type": "string", "maxLength": 128 },
+        "jobId": { "type": "string", "maxLength": 128 },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "userId", "jobId", "createdAt"]
+    },
+    "SavedCandidate": {
+      "title": "SavedCandidate",
+      "description": "Bookmarked candidate by employer",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128 },
+        "employerId": { "type": "string", "maxLength": 128 },
+        "workerId": { "type": "string", "maxLength": 128 },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "employerId", "workerId", "createdAt"]
+    },
+    "Report": {
+      "title": "Report",
+      "description": "Safety report filed against suspicious job or user",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128 },
+        "reporterId": { "type": "string", "maxLength": 128 },
+        "targetType": { "type": "string", "maxLength": 40 },
+        "targetId": { "type": "string", "maxLength": 128 },
+        "reason": { "type": "string", "maxLength": 1000 },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "reporterId", "targetType", "targetId", "reason", "createdAt"]
+    }
+  },
+  "firestore": {
+    "/users/{uid}": { "schema": "User", "description": "User account info and roles" },
+    "/workerProfiles/{uid}": { "schema": "WorkerProfile", "description": "Worker details, skills, location" },
+    "/employerProfiles/{uid}": { "schema": "EmployerProfile", "description": "Employer business details and verification" },
+    "/jobs/{jobId}": { "schema": "Job", "description": "Employer job postings" },
+    "/applications/{applicationId}": { "schema": "Application", "description": "Job applications" },
+    "/conversations/{conversationId}": { "schema": "Conversation", "description": "Direct message threads" },
+    "/messages/{messageId}": { "schema": "Message", "description": "Chat messages" },
+    "/notifications/{notificationId}": { "schema": "Notification", "description": "System and action notifications" },
+    "/savedJobs/{savedJobId}": { "schema": "SavedJob", "description": "Worker bookmarked jobs" },
+    "/savedCandidates/{savedCandidateId}": { "schema": "SavedCandidate", "description": "Employer bookmarked candidates" },
+    "/reports/{reportId}": { "schema": "Report", "description": "Safety and abuse reports" }
+  }
+}

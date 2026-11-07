@@ -1,0 +1,6 @@
+{
+  "name": "JOBSETU - India Employment Connectivity Platform",
+  "description": "Connecting People. Creating Opportunities. India-wide employment platform connecting job seekers and employers.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

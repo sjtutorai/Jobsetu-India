@@ -1,0 +1,314 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Default deny catch-all
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isLocalEmailUser(uid) {
+      return uid is string && uid.size() <= 128 && uid.matches('^usr_[a-zA-Z0-9_\\-]+$');
+    }
+
+    function isOwner(uid) {
+      return (isSignedIn() && request.auth.uid == uid) || isLocalEmailUser(uid);
+    }
+
+    function isAdmin() {
+      return isSignedIn() && (
+        exists(/databases/$(database)/documents/admins/$(request.auth.uid)) ||
+        (request.auth.token.email == 'sjtutorai@gmail.com' && request.auth.token.email_verified == true)
+      );
+    }
+
+    // Connection test document
+    match /test/{testId} {
+      allow read: if true;
+    }
+
+    // Admins collection
+    match /admins/{uid} {
+      allow get: if isValidId(uid);
+      allow list: if isSignedIn();
+      allow write: if isAdmin();
+    }
+
+    // User profile documents
+    match /users/{uid} {
+      allow get: if isValidId(uid) && (isSignedIn() || isLocalEmailUser(uid));
+      allow list: if true;
+      allow create: if isValidId(uid) && isOwner(uid);
+      allow update: if isValidId(uid) && (isOwner(uid) || isAdmin());
+      allow delete: if isValidId(uid) && (isOwner(uid) || isAdmin());
+    }
+
+    // Worker profiles (publicly searchable candidate directory, sensitive info protected)
+    match /workerProfiles/{uid} {
+      allow get: if isValidId(uid);
+      allow list: if true;
+      allow create: if isValidId(uid) && isOwner(uid);
+      allow update: if isValidId(uid) && (isOwner(uid) || isAdmin());
+      allow delete: if isValidId(uid) && (isOwner(uid) || isAdmin());
+    }
+
+    // Employer profiles
+    match /employerProfiles/{uid} {
+      allow get: if isValidId(uid);
+      allow list: if true;
+      allow create: if isValidId(uid) && isOwner(uid);
+      allow update: if isValidId(uid) && (isOwner(uid) || isAdmin());
+      allow delete: if isValidId(uid) && (isOwner(uid) || isAdmin());
+    }
+
+    // Job listings
+    match /jobs/{jobId} {
+      allow get: if isValidId(jobId);
+      allow list: if true;
+      allow create: if isValidId(jobId) && isOwner(incoming().employerId);
+      allow update: if isValidId(jobId) && (
+        isOwner(resource.data.employerId) ||
+        isAdmin() ||
+        incoming().diff(existing()).affectedKeys().hasOnly(['applicationsCount', 'updatedAt'])
+      );
+      allow delete: if isValidId(jobId) && (isOwner(resource.data.employerId) || isAdmin());
+    }
+
+    // Applications
+    match /applications/{applicationId} {
+      allow get, list: if true;
+      allow create: if isValidId(applicationId) && isOwner(incoming().workerId);
+      allow update: if isValidId(applicationId) && (
+        isOwner(resource.data.employerId) ||
+        isOwner(resource.data.workerId) ||
+        isAdmin()
+      );
+      allow delete: if isValidId(applicationId) && (
+        isOwner(resource.data.workerId) ||
+        isAdmin()
+      );
+    }
+
+    // Conversations
+    match /conversations/{conversationId} {
+      allow get, list: if true;
+      allow create: if isValidId(conversationId);
+      allow update: if isValidId(conversationId);
+      allow delete: if isAdmin();
+    }
+
+    // Messages
+    match /messages/{messageId} {
+      allow get, list: if true;
+      allow create: if isValidId(messageId) && isOwner(incoming().senderId);
+      allow update: if isValidId(messageId) && (
+        isOwner(resource.data.receiverId) || isAdmin()
+      );
+      allow delete: if isAdmin();
+    }
+
+    // Notifications
+    match /notifications/{notificationId} {
+      allow get, list: if true;
+      allow create: if isValidId(notificationId);
+      allow update: if isValidId(notificationId) && (isOwner(resource.data.recipientId) || isAdmin());
+      allow delete: if isValidId(notificationId) && (isOwner(resource.data.recipientId) || isAdmin());
+    }
+
+    // Saved Jobs
+    match /savedJobs/{savedJobId} {
+      allow get, list: if true;
+      allow create: if isValidId(savedJobId) && isOwner(incoming().userId);
+      allow delete: if isValidId(savedJobId) && (isOwner(resource.data.userId) || isAdmin());
+    }
+
+    // Saved Candidates
+    match /savedCandidates/{savedCandidateId} {
+      allow get, list: if true;
+      allow create: if isValidId(savedCandidateId) && isOwner(incoming().employerId);
+      allow delete: if isValidId(savedCandidateId) && (isOwner(resource.data.employerId) || isAdmin());
+    }
+
+    // Reports
+    match /reports/{reportId} {
+      allow create: if isValidId(reportId) && isOwner(incoming().reporterId);
+      allow get, list: if true;
+      allow update, delete: if isValidId(reportId) && isAdmin();
+    }
+
+    // Hiring Requests (Part 4)
+    match /hiring_requests/{requestId} {
+      allow get, list: if true;
+      allow create: if isValidId(requestId) && isOwner(incoming().employerId);
+      allow update: if isValidId(requestId) && (
+        isOwner(resource.data.workerId) ||
+        isOwner(resource.data.employerId) ||
+        isAdmin()
+      );
+      allow delete: if isValidId(requestId) && (
+        isOwner(resource.data.employerId) || isAdmin()
+      );
+    }
+
+    // Workplaces & Geofences (Part 5)
+    match /employer_workplaces/{workplaceId} {
+      allow get, list: if true;
+      allow create: if isValidId(workplaceId) && isOwner(incoming().employerId);
+      allow update, delete: if isValidId(workplaceId) && (
+        isOwner(resource.data.employerId) || isAdmin()
+      );
+    }
+
+    // Employee Records & Linked Accounts (Part 5)
+    match /employee_records/{employeeId} {
+      allow get, list: if true;
+      allow create: if isValidId(employeeId) && (
+        isOwner(incoming().employerId) || isAdmin()
+      );
+      allow update: if isValidId(employeeId) && (
+        isOwner(resource.data.employerId) ||
+        isOwner(resource.data.workerUid) ||
+        isAdmin()
+      );
+      allow delete: if isValidId(employeeId) && (
+        isOwner(resource.data.employerId) || isAdmin()
+      );
+    }
+
+    // Shifts (Part 5)
+    match /shifts/{shiftId} {
+      allow get, list: if true;
+      allow create: if isValidId(shiftId) && isOwner(incoming().employerId);
+      allow update, delete: if isValidId(shiftId) && (
+        isOwner(resource.data.employerId) || isAdmin()
+      );
+    }
+
+    // Attendance Records (Part 5)
+    match /attendance_records/{attendanceId} {
+      allow get, list: if true;
+      allow create: if isValidId(attendanceId) && (
+        isOwner(incoming().workerUid) ||
+        isOwner(incoming().employerId) ||
+        isAdmin()
+      );
+      allow update: if isValidId(attendanceId) && (
+        isOwner(resource.data.employerId) ||
+        isOwner(resource.data.workerUid) ||
+        isAdmin()
+      );
+      allow delete: if isValidId(attendanceId) && (
+        isOwner(resource.data.employerId) || isAdmin()
+      );
+    }
+
+    // Leave Requests (Part 5)
+    match /leave_requests/{leaveId} {
+      allow get, list: if true;
+      allow create: if isValidId(leaveId) && isOwner(incoming().workerUid);
+      allow update: if isValidId(leaveId) && (
+        isOwner(resource.data.employerId) ||
+        isOwner(resource.data.workerUid) ||
+        isAdmin()
+      );
+      allow delete: if isValidId(leaveId) && (
+        isOwner(resource.data.workerUid) || isAdmin()
+      );
+    }
+
+    // Attendance Corrections (Part 5)
+    match /attendance_corrections/{correctionId} {
+      allow get, list: if true;
+      allow create: if isValidId(correctionId) && isOwner(incoming().workerUid);
+      allow update: if isValidId(correctionId) && (
+        isOwner(resource.data.employerId) || isAdmin()
+      );
+      allow delete: if isValidId(correctionId) && isAdmin();
+    }
+
+    // Top Companies Directory & Verified Vacancies (Part 5)
+    match /company_profiles/{companyId} {
+      allow get, list: if true;
+      allow write: if isAdmin();
+    }
+
+    // Saved Favourite Companies (Part 5)
+    match /saved_companies/{savedCompanyId} {
+      allow get, list: if true;
+      allow create: if isValidId(savedCompanyId) && isOwner(incoming().userId);
+      allow delete: if isValidId(savedCompanyId) && (isOwner(resource.data.userId) || isAdmin());
+    }
+
+    // Identity Verifications (Aadhaar Offline e-KYC / Secure QR / Alternative Govt ID)
+    match /identity_verifications/{verificationId} {
+      allow get, list: if true;
+      allow create: if isValidId(verificationId) && isOwner(incoming().userId);
+      allow update: if isValidId(verificationId) && (
+        isOwner(resource.data.userId) || isAdmin()
+      );
+      allow delete: if isAdmin();
+    }
+
+    // DigiLocker & Verified Qualification Documents
+    match /verified_documents/{docId} {
+      allow get, list: if true;
+      allow create: if isValidId(docId) && isOwner(incoming().userId);
+      allow update: if isValidId(docId) && (
+        isOwner(resource.data.userId) || isAdmin()
+      );
+      allow delete: if isValidId(docId) && (
+        isOwner(resource.data.userId) || isAdmin()
+      );
+    }
+
+    // User Consents Log (UIDAI & DigiLocker Consent Records)
+    match /user_consents/{consentId} {
+      allow get, list: if true;
+      allow create: if isValidId(consentId) && isOwner(incoming().userId);
+      allow update, delete: if isAdmin();
+    }
+
+    // Worker 5-Star Weighted Ratings & Reviews
+    match /worker_ratings/{ratingId} {
+      allow get, list: if true;
+      allow create: if isValidId(ratingId) && isOwner(incoming().employerId);
+      allow update: if isValidId(ratingId) && (
+        isOwner(resource.data.employerId) ||
+        isOwner(resource.data.workerId) ||
+        isAdmin()
+      );
+      allow delete: if isAdmin();
+    }
+
+    // Rating Appeals & Review Moderation
+    match /rating_appeals/{appealId} {
+      allow get, list: if true;
+      allow create: if isValidId(appealId) && isOwner(incoming().workerId);
+      allow update: if isValidId(appealId) && isAdmin();
+      allow delete: if isAdmin();
+    }
+
+    // Verification Audit Logs
+    match /verification_audit_logs/{logId} {
+      allow get, list: if true;
+      allow create: if isValidId(logId);
+      allow update, delete: if isAdmin();
+    }
+  }
+}
