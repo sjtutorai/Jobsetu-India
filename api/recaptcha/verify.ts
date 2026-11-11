@@ -34,6 +34,7 @@ export default async function handler(req: any, res: any) {
       });
     }
 
+    // Create the request body with TOKEN and USER_ACTION replacements and save it in request.json
     const requestBody = {
       event: {
         token,
@@ -42,26 +43,38 @@ export default async function handler(req: any, res: any) {
       }
     };
 
-    // On Vercel serverless, /tmp is writable
+    const savedJsonString = JSON.stringify(requestBody, null, 2);
+    const targetDir = process.env.VERCEL ? '/tmp' : process.cwd();
+    const requestJsonPath = path.join(targetDir, 'request.json');
+
     try {
-      const targetDir = process.env.VERCEL ? '/tmp' : process.cwd();
-      const requestJsonPath = path.join(targetDir, 'request.json');
-      fs.writeFileSync(requestJsonPath, JSON.stringify(requestBody, null, 2), 'utf-8');
+      fs.writeFileSync(requestJsonPath, savedJsonString, 'utf-8');
     } catch {
       // Ignore read-only filesystem errors in serverless edge environments
     }
 
+    let postBody = savedJsonString;
+    try {
+      if (fs.existsSync(requestJsonPath)) {
+        postBody = fs.readFileSync(requestJsonPath, 'utf-8');
+      }
+    } catch {
+      postBody = savedJsonString;
+    }
+
+    // Replace API_KEY with the API key associated with the current project (jobsetuinindia)
     const apiKey =
       process.env.RECAPTCHA_ENTERPRISE_API_KEY ||
       process.env.VITE_FIREBASE_API_KEY ||
       DEFAULT_API_KEY;
     const assessmentUrl = `https://recaptchaenterprise.googleapis.com/v1/projects/${PROJECT_ID}/assessments?key=${apiKey}`;
 
+    // Send an HTTP POST request with the saved JSON data to the assessment URL
     try {
       const googleRes = await fetch(assessmentUrl, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(requestBody)
+        headers: { 'Content-Type': 'application/json; charset=utf-8' },
+        body: postBody
       });
 
       if (googleRes.ok) {
@@ -77,6 +90,7 @@ export default async function handler(req: any, res: any) {
           score,
           action: assessment?.tokenProperties?.action || action,
           assessmentName: assessment?.name,
+          assessment,
           expiresInSeconds: 120
         });
       }

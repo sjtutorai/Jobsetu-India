@@ -20,6 +20,7 @@ import { fireCelebrationConfetti } from './lib/confetti';
 import { AdminDashboard } from './components/admin/AdminDashboard';
 import { AIAssistantModal } from './components/common/AIAssistantModal';
 import { Shield, MapPin, Navigation, X } from 'lucide-react';
+import { executeRecaptchaEnterprise } from './lib/recaptcha';
 
 type AppView = 'home' | 'worker-onboarding' | 'employer-onboarding' | 'dashboard' | 'admin';
 
@@ -43,6 +44,11 @@ function MainApp() {
   const [toasts, setToasts] = useState<ToastMessage[]>([]);
   const [aiModalOpen, setAiModalOpen] = useState(false);
   const [locationDeniedBanner, setLocationDeniedBanner] = useState(false);
+
+  // Execute reCAPTCHA Enterprise assessment on app initialization to verify token & update request.json
+  useEffect(() => {
+    executeRecaptchaEnterprise('LOGIN').catch(() => {});
+  }, []);
 
   const requestUserLocationPermission = () => {
     if (typeof navigator === 'undefined' || !navigator.geolocation) {

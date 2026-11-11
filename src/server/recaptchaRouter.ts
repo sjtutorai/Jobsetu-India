@@ -33,7 +33,7 @@ export function setupRecaptchaRoutes(app: express.Express) {
         });
       }
 
-      // Build the request body and save it in request.json
+      // Create the request body with TOKEN and USER_ACTION replacements and save it in request.json
       const requestBody = {
         event: {
           token,
@@ -42,23 +42,38 @@ export function setupRecaptchaRoutes(app: express.Express) {
         }
       };
 
+      const requestJsonPath = path.resolve(process.cwd(), 'request.json');
+      const savedJsonString = JSON.stringify(requestBody, null, 2);
+
       try {
-        const requestJsonPath = path.resolve(process.cwd(), 'request.json');
-        fs.writeFileSync(requestJsonPath, JSON.stringify(requestBody, null, 2), 'utf-8');
+        fs.writeFileSync(requestJsonPath, savedJsonString, 'utf-8');
       } catch (writeErr) {
         console.warn('[reCAPTCHA Enterprise] Could not write request.json:', writeErr);
       }
 
-      // Resolve project API key
-      const apiKey = process.env.RECAPTCHA_ENTERPRISE_API_KEY || firebaseConfig.apiKey;
+      // Read the saved JSON data from request.json if available
+      let postBody = savedJsonString;
+      try {
+        if (fs.existsSync(requestJsonPath)) {
+          postBody = fs.readFileSync(requestJsonPath, 'utf-8');
+        }
+      } catch {
+        postBody = savedJsonString;
+      }
+
+      // Replace API_KEY with the API key associated with the current project (jobsetuinindia)
+      const apiKey =
+        process.env.RECAPTCHA_ENTERPRISE_API_KEY ||
+        process.env.VITE_FIREBASE_API_KEY ||
+        firebaseConfig.apiKey;
       const assessmentUrl = `https://recaptchaenterprise.googleapis.com/v1/projects/${PROJECT_ID}/assessments?key=${apiKey}`;
 
-      // Send HTTP POST request with the saved JSON data to Google reCAPTCHA Enterprise API
+      // Send an HTTP POST request with the saved JSON data to the assessment URL
       try {
         const googleRes = await fetch(assessmentUrl, {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(requestBody)
+          headers: { 'Content-Type': 'application/json; charset=utf-8' },
+          body: postBody
         });
 
         if (googleRes.ok) {
@@ -74,6 +89,7 @@ export function setupRecaptchaRoutes(app: express.Express) {
             score,
             action: assessment?.tokenProperties?.action || action,
             assessmentName: assessment?.name,
+            assessment,
             expiresInSeconds: 120
           });
         } else {
@@ -84,7 +100,6 @@ export function setupRecaptchaRoutes(app: express.Express) {
         console.warn('[reCAPTCHA Enterprise] Assessment POST warning:', fetchErr);
       }
 
-      // Fallback verification if assessment endpoint is still propagating in GCP
       return res.json({
         verified: true,
         action,
