@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useAttendance } from '../../context/AttendanceContext';
 import { useAuth } from '../../context/AuthContext';
+import { useJobs } from '../../context/JobContext';
 import { AttendanceVerificationType, LeaveType } from '../../types';
 import {
   Clock,
@@ -17,11 +18,15 @@ import {
   History,
   Send,
   Sparkles,
-  ArrowRight
+  ArrowRight,
+  Lock,
+  Building2,
+  Briefcase
 } from 'lucide-react';
 
 export const WorkerAttendanceView: React.FC = () => {
-  const { workerProfile, userProfile } = useAuth();
+  const { currentUser, workerProfile, userProfile } = useAuth();
+  const { myApplications, hiringRequests } = useJobs();
   const {
     workplaces,
     shifts,
@@ -35,6 +40,14 @@ export const WorkerAttendanceView: React.FC = () => {
     myLeaveRequests,
     myCorrections
   } = useAttendance();
+
+  // Check if the worker has actually joined a company
+  const activeEmployment = myEmploymentRecords.find((r) => r.status === 'Active');
+  const selectedApplication = myApplications.find((a) => a.status === 'Selected');
+  const acceptedHiringOffer = hiringRequests.find(
+    (h) => h.workerId === currentUser?.uid && h.status === 'Accepted'
+  );
+  const hasJoinedCompany = Boolean(activeEmployment || selectedApplication || acceptedHiringOffer);
 
   const [activeTab, setActiveTab] = useState<'punch' | 'history' | 'leave' | 'correction'>('punch');
   const [verificationMethod, setVerificationMethod] = useState<AttendanceVerificationType>('GPS Geofence');
@@ -216,6 +229,56 @@ export const WorkerAttendanceView: React.FC = () => {
   const totalShiftsLogged = myAttendanceHistory.length;
   const totalHoursWorked = myAttendanceHistory.reduce((acc, curr) => acc + (curr.effectiveWorkingHours || 0), 0);
   const totalLateArrivals = myAttendanceHistory.filter((a) => a.isLate).length;
+
+  if (!hasJoinedCompany) {
+    return (
+      <div className="space-y-6 animate-in fade-in">
+        <div className="bg-white rounded-3xl border border-slate-200 p-8 sm:p-12 text-center shadow-sm max-w-2xl mx-auto my-6">
+          <div className="w-16 h-16 rounded-2xl bg-amber-50 border border-amber-200 text-amber-600 flex items-center justify-center mx-auto mb-5">
+            <Lock className="w-8 h-8" />
+          </div>
+          <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-slate-100 text-slate-700 text-[11px] font-black uppercase tracking-wider mb-3">
+            <Clock className="w-3.5 h-3.5 text-slate-500" /> Attendance Feature Inactive
+          </span>
+          <h2 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight">
+            Join a Company to Activate Attendance
+          </h2>
+          <p className="text-xs sm:text-sm text-slate-600 mt-2.5 max-w-md mx-auto leading-relaxed">
+            The GPS Geofence & QR Attendance system is currently turned off because you have not joined any company yet. Once an employer selects your job application, or you accept a direct hiring offer, your daily attendance punch desk will activate automatically.
+          </p>
+          <div className="mt-6 pt-6 border-t border-slate-100 grid grid-cols-1 sm:grid-cols-3 gap-3 text-left">
+            <div className="p-3.5 rounded-2xl bg-slate-50 border border-slate-200/80">
+              <div className="flex items-center gap-2 text-xs font-extrabold text-slate-800">
+                <Briefcase className="w-4 h-4 text-blue-600 shrink-0" />
+                <span>1. Apply or Get Offer</span>
+              </div>
+              <p className="text-[11px] text-slate-500 mt-1">
+                Apply to verified local jobs or receive a direct hiring request from an employer.
+              </p>
+            </div>
+            <div className="p-3.5 rounded-2xl bg-slate-50 border border-slate-200/80">
+              <div className="flex items-center gap-2 text-xs font-extrabold text-slate-800">
+                <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+                <span>2. Join Company</span>
+              </div>
+              <p className="text-[11px] text-slate-500 mt-1">
+                Accept the hiring offer or get marked as Selected by the business owner.
+              </p>
+            </div>
+            <div className="p-3.5 rounded-2xl bg-slate-50 border border-slate-200/80">
+              <div className="flex items-center gap-2 text-xs font-extrabold text-slate-800">
+                <Building2 className="w-4 h-4 text-amber-600 shrink-0" />
+                <span>3. Punch In Daily</span>
+              </div>
+              <p className="text-[11px] text-slate-500 mt-1">
+                Attendance unlocks automatically for your assigned workplace shift.
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6 animate-in fade-in">

@@ -77,21 +77,27 @@ export const SendHiringRequestModal: React.FC<SendHiringRequestModalProps> = ({
     setError(null);
 
     try {
-      await sendHiringRequest({
+      const payload: any = {
         workerId: worker.uid,
         workerName: worker.fullName || 'Candidate',
-        workerPhoto: worker.profilePhoto,
+        workerPhoto: worker.profilePhoto || '',
         workerProfession: worker.skills?.[0] || 'Worker',
-        jobId: selectedJobId !== 'custom' ? selectedJobId : undefined,
+        jobId: selectedJobId !== 'custom' ? selectedJobId : 'custom',
         jobTitle,
         offeredSalary,
         workplaceLocation,
-        workplaceLat: employerProfile?.lat,
-        workplaceLng: employerProfile?.lng,
         workTimings,
         joiningDate,
         message
-      });
+      };
+      if (typeof employerProfile?.lat === 'number') {
+        payload.workplaceLat = employerProfile.lat;
+      }
+      if (typeof employerProfile?.lng === 'number') {
+        payload.workplaceLng = employerProfile.lng;
+      }
+
+      await sendHiringRequest(payload);
 
       if (onSuccess) onSuccess();
       onClose();

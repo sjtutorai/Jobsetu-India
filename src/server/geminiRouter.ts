@@ -1,11 +1,10 @@
 import express from 'express';
-import { GoogleGenAI } from '@google/genai';
+import { GoogleGenAI, Type } from '@google/genai';
 import dotenv from 'dotenv';
 
 dotenv.config();
 
 export function setupGeminiRoutes(app: express.Express) {
-  // Initialize server-side Gemini client
   const apiKey = process.env.GEMINI_API_KEY;
   const ai = new GoogleGenAI({
     apiKey: apiKey || '',
@@ -13,6 +12,104 @@ export function setupGeminiRoutes(app: express.Express) {
       headers: {
         'User-Agent': 'aistudio-build'
       }
+    }
+  });
+
+  // Multimodal AI Verification of Business Sign Board / Coaching Classes Board & GSTIN Number
+  app.post('/api/ai/verify-business-board', async (req, res) => {
+    try {
+      const { imageBase64, businessName = '', businessCategory = '', gstinNumber = '' } = req.body || {};
+
+      if (!imageBase64 || typeof imageBase64 !== 'string') {
+        return res.status(400).json({
+          verified: false,
+          error: 'Please upload a valid Business / Coaching Classes Sign Board image.'
+        });
+      }
+
+      if (!apiKey) {
+        return res.status(500).json({
+          verified: false,
+          error: 'Gemini API key is not configured on the server.'
+        });
+      }
+
+      // Extract MIME type and raw base64 data
+      const match = imageBase64.match(/^data:(image\/[a-zA-Z0-9.+-]+);base64,(.+)$/);
+      const mimeType = match ? match[1] : 'image/jpeg';
+      const base64Data = match ? match[2] : imageBase64;
+
+      const imagePart = {
+        inlineData: {
+          mimeType,
+          data: base64Data
+        }
+      };
+
+      const textPart = {
+        text: `Analyze this uploaded Business / Coaching Classes Sign Board & Premises photo for JOBSETU India Employer Verification.
+Declared Business Name: "${businessName}"
+Declared Category: "${businessCategory}"
+Declared GSTIN / Registration Number: "${gstinNumber}"
+
+Tasks:
+1. Check if this image shows a real business storefront, coaching classes sign board, banner, or office board.
+2. Read any visible text on the board, specifically looking for the Business / Coaching Classes Name and the 15-character Indian GSTIN number displayed on the board.
+3. Verify whether the board shows the GSTIN number or business signage clearly.`
+      };
+
+      const response = await ai.models.generateContent({
+        model: 'gemini-3.8-flash',
+        contents: { parts: [imagePart, textPart] },
+        config: {
+          systemInstruction:
+            'You are an AI Business Compliance & Sign Board Auditor for JOBSETU India. Inspect uploaded photos of Coaching Classes boards, shop signboards, and business premises to verify that the board displays the business name and GSTIN number.',
+          responseMimeType: 'application/json',
+          responseSchema: {
+            type: Type.OBJECT,
+            properties: {
+              verified: {
+                type: Type.BOOLEAN,
+                description: 'True if the image shows a business/coaching classes board or premises with identifiable signage/GSTIN.'
+              },
+              hasSignBoard: {
+                type: Type.BOOLEAN,
+                description: 'True if a business or coaching classes sign board is visible in the image.'
+              },
+              detectedBusinessName: {
+                type: Type.STRING,
+                description: 'The business or coaching classes name detected on the board, if any.'
+              },
+              detectedGstin: {
+                type: Type.STRING,
+                description: 'The GSTIN number detected on the board, if visible.'
+              },
+              feedback: {
+                type: Type.STRING,
+                description: 'Clear verification summary for the business owner.'
+              }
+            },
+            required: ['verified', 'hasSignBoard', 'detectedBusinessName', 'detectedGstin', 'feedback']
+          }
+        }
+      });
+
+      const parsed = JSON.parse((response.text ?? '{}').trim());
+      return res.json({
+        verified: Boolean(parsed.verified),
+        hasSignBoard: Boolean(parsed.hasSignBoard),
+        detectedBusinessName: parsed.detectedBusinessName || businessName,
+        detectedGstin: parsed.detectedGstin || '',
+        feedback:
+          parsed.feedback ||
+          'Business sign board image analyzed by JOBSETU AI Verification Engine.'
+      });
+    } catch (error: any) {
+      console.error('Gemini Business Board Verification Error:', error);
+      return res.status(500).json({
+        verified: false,
+        error: error.message || 'Failed to verify business board image with AI.'
+      });
     }
   });
 
@@ -93,7 +190,6 @@ Generate:
 2. Short SMS/Telegram broadcast announcement
 3. Key bullet points highlighting perks (PF/ESI, incentive, flexible shift).`;
       } else {
-        // General Q&A / Platform Guide
         systemInstruction += ` Answer employment-related questions, guide first-time job seekers and employers on navigating JOBSETU, labor laws, interview etiquette, and career progression in India.`;
         fullPrompt = prompt || 'How can JOBSETU help me find work or hire skilled staff?';
       }

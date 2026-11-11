@@ -56,6 +56,7 @@ interface SlideSidebarProps {
   unreadNotificationsCount?: number;
   activeJobsCount?: number;
   savedCount?: number;
+  hasJoinedCompany?: boolean;
 }
 
 export const SlideSidebar: React.FC<SlideSidebarProps> = ({
@@ -78,7 +79,8 @@ export const SlideSidebar: React.FC<SlideSidebarProps> = ({
   unreadMessagesCount = 0,
   unreadNotificationsCount = 0,
   activeJobsCount = 0,
-  savedCount = 0
+  savedCount = 0,
+  hasJoinedCompany = false
 }) => {
   const isWorker = role === 'worker';
   const accentColor = isWorker ? '#2563EB' : '#D97706';
@@ -120,14 +122,18 @@ export const SlideSidebar: React.FC<SlideSidebarProps> = ({
       badge: 'e-KYC',
       badgeColor: 'bg-emerald-100 text-emerald-800'
     },
-    {
-      id: 'attendance',
-      label: 'My Attendance',
-      subtext: 'GPS / QR Check-in',
-      icon: Clock,
-      badge: 'Live',
-      badgeColor: 'bg-emerald-100 text-emerald-800'
-    },
+    ...(hasJoinedCompany
+      ? [
+          {
+            id: 'attendance',
+            label: 'My Attendance',
+            subtext: 'GPS / QR Check-in',
+            icon: Clock,
+            badge: 'Live',
+            badgeColor: 'bg-emerald-100 text-emerald-800'
+          }
+        ]
+      : []),
     {
       id: 'hiring_requests',
       label: 'Hiring Offers',

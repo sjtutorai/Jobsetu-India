@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { useJobs } from '../../context/JobContext';
+import { useAttendance } from '../../context/AttendanceContext';
 import { JobDiscovery } from '../jobs/JobDiscovery';
 import { WorkerApplications } from '../applications/WorkerApplications';
 import { SavedJobs } from '../jobs/SavedJobs';
@@ -74,10 +75,12 @@ export const WorkerDashboard: React.FC<WorkerDashboardProps> = ({
   onSwitchRole,
   onOpenAIAssistant
 }) => {
-  const { userProfile, workerProfile, logout } = useAuth();
+  const { currentUser, userProfile, workerProfile, logout } = useAuth();
+  const { myEmploymentRecords } = useAttendance();
   const {
     jobs,
     myApplications,
+    hiringRequests,
     savedJobIds,
     conversations,
     unreadNotificationsCount,
@@ -97,6 +100,12 @@ export const WorkerDashboard: React.FC<WorkerDashboardProps> = ({
 
   const enabledRoles = userProfile?.enabledRoles || ['worker'];
   const hasEmployerRole = enabledRoles.includes('employer');
+
+  // Check if worker has joined any company (Active employment record, Selected application, or Accepted hiring request)
+  const hasJoinedCompany =
+    myEmploymentRecords.some((r) => r.status === 'Active') ||
+    myApplications.some((a) => a.status === 'Selected') ||
+    hiringRequests.some((h) => h.workerId === currentUser?.uid && h.status === 'Accepted');
 
   // Worker coordinates for 50km radius
   const workerLat = workerProfile?.lat || 28.6139;
@@ -189,6 +198,7 @@ export const WorkerDashboard: React.FC<WorkerDashboardProps> = ({
         unreadNotificationsCount={unreadNotificationsCount}
         activeJobsCount={availableJobsCount}
         savedCount={savedJobIds.length}
+        hasJoinedCompany={hasJoinedCompany}
       />
 
       {/* Main Content Area */}

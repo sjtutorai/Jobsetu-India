@@ -15,7 +15,14 @@ export default async function handler(req: any, res: any) {
       });
     }
 
-    const ai = new GoogleGenAI({ apiKey });
+    const ai = new GoogleGenAI({
+      apiKey,
+      httpOptions: {
+        headers: {
+          'User-Agent': 'aistudio-build'
+        }
+      }
+    });
 
     let systemInstruction = `You are the JOBSETU AI Employment Assistant, dedicated to connecting workers and employers across India.
 Your mission is to provide actionable, culturally tuned, highly professional vocational and employment guidance.
@@ -88,7 +95,7 @@ Generate:
     }
 
     const response = await ai.models.generateContent({
-      model: 'gemini-2.5-flash',
+      model: 'gemini-3.8-flash',
       contents: fullPrompt,
       config: {
         systemInstruction,

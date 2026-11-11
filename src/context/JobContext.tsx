@@ -975,15 +975,25 @@ export const JobProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     data: Omit<HiringRequest, 'id' | 'employerId' | 'employerName' | 'status' | 'createdAt' | 'updatedAt'>
   ): Promise<string> => {
     if (!currentUser) throw new Error('Authentication required');
-    const hrRef = await addDoc(collection(db, 'hiring_requests'), {
+
+    const rawDocData: Record<string, any> = {
       ...data,
+      workerPhoto: data.workerPhoto || '',
+      jobId: data.jobId || 'custom',
       employerId: currentUser.uid,
       employerName: employerProfile?.businessName || userProfile?.name || 'Recruiter',
       employerLogo: employerProfile?.businessLogo || '',
       status: 'Pending',
       createdAt: serverTimestamp(),
       updatedAt: serverTimestamp()
-    });
+    };
+
+    // Strip any undefined fields so Firestore addDoc never throws Unsupported field value: undefined
+    const cleanDocData = Object.fromEntries(
+      Object.entries(rawDocData).filter(([_, value]) => value !== undefined)
+    );
+
+    const hrRef = await addDoc(collection(db, 'hiring_requests'), cleanDocData);
 
     // Notify worker
     await addDoc(collection(db, 'notifications'), {

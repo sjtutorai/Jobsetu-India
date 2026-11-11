@@ -37,8 +37,8 @@ interface AuthContextType {
   loading: boolean;
   intendedRole: UserRole;
   setIntendedRole: (role: UserRole) => void;
-  loginWithGoogle: (role?: UserRole) => Promise<void>;
-  loginWithEmail: (email: string, pass: string) => Promise<void>;
+  loginWithGoogle: (role?: UserRole) => Promise<UserRole>;
+  loginWithEmail: (email: string, pass: string) => Promise<UserRole>;
   registerWithEmail: (name: string, email: string, pass: string, role: UserRole) => Promise<void>;
   sendPhoneOtp: (phoneNumber: string, appVerifier: RecaptchaVerifier) => Promise<ConfirmationResult>;
   verifyPhoneOtp: (confirmationResult: ConfirmationResult, otp: string, role?: UserRole) => Promise<void>;
@@ -247,8 +247,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
 
       await Promise.allSettled(rolePromises);
+      return profileData.activeRole || fallbackRole || intendedRole || 'worker';
     } catch (error) {
       console.warn('Error fetching user records:', error);
+      return fallbackRole || intendedRole || 'worker';
     }
   };
 
@@ -297,24 +299,26 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     };
   }, []);
 
-  const loginWithGoogle = async (role?: UserRole) => {
+  const loginWithGoogle = async (role?: UserRole): Promise<UserRole> => {
     const selectedRole = role || intendedRole;
     updateIntendedRole(selectedRole);
     const result = await signInWithPopup(auth, googleProvider);
     if (result.user) {
       localStorage.removeItem(ACTIVE_LOCAL_USER_KEY);
-      await fetchUserData(result.user, selectedRole);
+      return await fetchUserData(result.user, selectedRole);
     }
+    return selectedRole;
   };
 
-  const loginWithEmail = async (email: string, pass: string) => {
+  const loginWithEmail = async (email: string, pass: string): Promise<UserRole> => {
     const cleanEmail = email.trim().toLowerCase();
     try {
       const result = await signInWithEmailAndPassword(auth, cleanEmail, pass);
       if (result.user) {
         localStorage.removeItem(ACTIVE_LOCAL_USER_KEY);
-        await fetchUserData(result.user);
+        return await fetchUserData(result.user);
       }
+      return intendedRole || 'worker';
     } catch (err: any) {
       if (
         err?.code === 'auth/operation-not-allowed' ||
@@ -344,8 +348,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
         const syntheticUser = buildSyntheticFirebaseUser(accountToSave.uid, accountToSave.name, accountToSave.email);
         setCurrentUser(syntheticUser);
-        await fetchUserData(syntheticUser, accountToSave.role);
-        return;
+        return await fetchUserData(syntheticUser, accountToSave.role);
       }
       throw err;
     }

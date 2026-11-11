@@ -91,6 +91,9 @@ export interface EmployerProfile {
   businessCategory: string;
   businessDescription?: string;
   businessLogo?: string;
+  businessImages?: string[];
+  boardGstinVerifiedByAI?: boolean;
+  aiBoardVerificationSummary?: string;
   website?: string;
   state: string;
   district?: string;
@@ -331,6 +334,7 @@ export const SKILL_CATEGORIES_DATA: Record<string, string[]> = {
 };
 
 export const BUSINESS_CATEGORIES = [
+  'Coaching Classes / Education Institute',
   'Retail',
   'Restaurant',
   'Hotel',
