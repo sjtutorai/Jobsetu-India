@@ -37,7 +37,7 @@ interface WorkerOnboardingProps {
 const TOTAL_STEPS = 7;
 
 export const WorkerOnboarding: React.FC<WorkerOnboardingProps> = ({ onComplete, onCancel }) => {
-  const { currentUser, userProfile, workerProfile, saveWorkerProfile } = useAuth();
+  const { currentUser, userProfile, workerProfile, saveWorkerProfile, saveDraftWorkerProfile } = useAuth();
 
   const [currentStep, setCurrentStep] = useState(1);
   const [submitting, setSubmitting] = useState(false);
@@ -45,6 +45,12 @@ export const WorkerOnboarding: React.FC<WorkerOnboardingProps> = ({ onComplete, 
 
   // STEP 1: Personal info
   const [fullName, setFullName] = useState(workerProfile?.fullName || userProfile?.name || '');
+  const [phone, setPhone] = useState(
+    workerProfile?.phone || userProfile?.phone || currentUser?.phoneNumber || '+91 '
+  );
+  const [email, setEmail] = useState(
+    workerProfile?.email || userProfile?.email || currentUser?.email || ''
+  );
   const [dateOfBirth, setDateOfBirth] = useState(workerProfile?.dateOfBirth || '');
   const [ageEligibilityConfirmed, setAgeEligibilityConfirmed] = useState(
     workerProfile?.ageEligibilityConfirmed ?? true
@@ -127,6 +133,45 @@ export const WorkerOnboarding: React.FC<WorkerOnboardingProps> = ({ onComplete, 
     }
   };
 
+  const buildCurrentDraft = (): Partial<WorkerProfile> => ({
+    fullName: fullName.trim() || userProfile?.name || '',
+    phone: phone.trim(),
+    email: email.trim() || userProfile?.email || currentUser?.email || '',
+    dateOfBirth: dateOfBirth || '',
+    ageEligibilityConfirmed,
+    gender,
+    profilePhoto: profilePhoto || '',
+    isPhotoVerifiedReal: !!isPhotoVerifiedReal,
+    country,
+    state,
+    district: district.trim(),
+    city: city.trim(),
+    area: area.trim(),
+    pincode: pincode.trim(),
+    lat: lat || 28.6139,
+    lng: lng || 77.2090,
+    preferredLocations,
+    education,
+    skills: selectedSkills,
+    customSkills,
+    experience,
+    jobPreferences: {
+      jobTypes,
+      expectedSalary,
+      availability,
+      preferredLocations
+    }
+  });
+
+  const handleSaveDraftAndExit = async () => {
+    try {
+      await saveDraftWorkerProfile(buildCurrentDraft());
+    } catch {
+      // ignore
+    }
+    onCancel();
+  };
+
   const validateStep = (step: number): boolean => {
     setErrorMsg(null);
     if (step === 1) {
@@ -194,6 +239,8 @@ export const WorkerOnboarding: React.FC<WorkerOnboardingProps> = ({ onComplete, 
 
   const handleNext = () => {
     if (validateStep(currentStep)) {
+      // Save partial progress to Firestore so if user logs in on another device, details are preserved
+      saveDraftWorkerProfile(buildCurrentDraft()).catch(() => {});
       if (currentStep < TOTAL_STEPS) {
         setCurrentStep(prev => prev + 1);
         window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -206,10 +253,11 @@ export const WorkerOnboarding: React.FC<WorkerOnboardingProps> = ({ onComplete, 
   const handleBack = () => {
     setErrorMsg(null);
     if (currentStep > 1) {
+      saveDraftWorkerProfile(buildCurrentDraft()).catch(() => {});
       setCurrentStep(prev => prev - 1);
       window.scrollTo({ top: 0, behavior: 'smooth' });
     } else {
-      onCancel();
+      handleSaveDraftAndExit();
     }
   };
 
@@ -256,6 +304,8 @@ export const WorkerOnboarding: React.FC<WorkerOnboardingProps> = ({ onComplete, 
 
       const profilePayload = {
         fullName: fullName.trim(),
+        phone: phone.trim(),
+        email: email.trim() || userProfile?.email || currentUser?.email || '',
         dateOfBirth: dateOfBirth || '',
         ageEligibilityConfirmed: true,
         gender,
@@ -305,18 +355,19 @@ export const WorkerOnboarding: React.FC<WorkerOnboardingProps> = ({ onComplete, 
                 JOB<span className="text-[#2563EB]">SETU</span>
               </span>
               <span className="px-2 py-0.5 rounded text-xs font-bold bg-blue-100 text-[#2563EB]">
-                Worker Onboarding
+                Worker Onboarding (100% Profile Completion)
               </span>
             </div>
             <p className="text-xs text-gray-500 mt-1">
-              Complete your profile to unlock job opportunities across India
+              Complete your 100% profile to find the best verified jobs across India
             </p>
           </div>
           <button
-            onClick={onCancel}
-            className="text-xs font-semibold text-gray-500 hover:text-gray-800 p-2 rounded-lg hover:bg-gray-200 transition-colors"
+            type="button"
+            onClick={handleSaveDraftAndExit}
+            className="text-xs font-bold text-[#2563EB] bg-blue-50 hover:bg-blue-100 border border-blue-200 px-3.5 py-2 rounded-xl transition-colors cursor-pointer"
           >
-            Save & Exit
+            Save Progress & Go to Dashboard
           </button>
         </div>
 
@@ -484,6 +535,36 @@ export const WorkerOnboarding: React.FC<WorkerOnboardingProps> = ({ onComplete, 
                   placeholder="e.g. Ramesh Kumar Patel"
                   className="w-full px-4 py-3 rounded-xl border border-gray-300 focus:border-[#2563EB] focus:ring-1 focus:ring-[#2563EB] outline-none text-sm font-medium"
                 />
+              </div>
+
+              {/* Email & Mobile Phone Number */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-bold text-gray-700 mb-1">
+                    Email Address <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="email"
+                    required
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    placeholder="you@example.com"
+                    className="w-full px-4 py-2.5 rounded-xl border border-gray-300 focus:border-[#2563EB] outline-none text-sm"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-gray-700 mb-1">
+                    Mobile Phone Number <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="tel"
+                    required
+                    value={phone}
+                    onChange={(e) => setPhone(e.target.value)}
+                    placeholder="+91 9876543210"
+                    className="w-full px-4 py-2.5 rounded-xl border border-gray-300 focus:border-[#2563EB] outline-none text-sm"
+                  />
+                </div>
               </div>
 
               {/* Date of Birth & Mandatory Gender */}

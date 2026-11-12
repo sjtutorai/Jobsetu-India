@@ -174,20 +174,47 @@ export const WorkerDashboard: React.FC<WorkerDashboardProps> = ({
   // Inquiries / Contacts from employers
   const employersContactedCount = conversations.length + shortlistedCount;
 
-  // Profile completion calculation
+  // Basic details resolved from workerProfile + userProfile + currentUser
+  const displayFullName = workerProfile?.fullName || userProfile?.name || currentUser?.displayName || 'Job Seeker';
+  const displayEmail = workerProfile?.email || userProfile?.email || currentUser?.email || 'Not added yet';
+  const displayPhone =
+    (workerProfile?.phone && workerProfile.phone.trim() !== '+91' ? workerProfile.phone : '') ||
+    (userProfile?.phone && userProfile.phone.trim() !== '+91' ? userProfile.phone : '') ||
+    currentUser?.phoneNumber ||
+    'Not added yet';
+
+  // Profile completion calculation (100% requires full onboarding details)
   const calculateProfileCompletion = (): number => {
-    if (!workerProfile) return 20;
-    let score = 25; // Basic registration
-    if (workerProfile.fullName) score += 10;
-    if (workerProfile.profilePhoto) score += 15;
-    if (workerProfile.skills && workerProfile.skills.length > 0) score += 20;
-    if (workerProfile.experience) score += 10;
-    if (workerProfile.education) score += 10;
-    if (workerProfile.city && workerProfile.pincode) score += 10;
+    let score = 0;
+    if (displayFullName && displayFullName !== 'Job Seeker') score += 10;
+    if (displayEmail && displayEmail !== 'Not added yet') score += 10;
+    if (displayPhone && displayPhone !== 'Not added yet' && displayPhone.replace(/\D/g, '').length >= 10) score += 10;
+    if (workerProfile?.profilePhoto) score += 15;
+    if (workerProfile?.state && workerProfile?.pincode) score += 15;
+    if (((workerProfile?.skills?.length || 0) + (workerProfile?.customSkills?.length || 0)) > 0) score += 20;
+    if (workerProfile?.education && workerProfile?.experience) score += 10;
+    if (userProfile?.onboardingCompleted && workerProfile?.jobPreferences?.jobTypes?.length) score += 10;
     return Math.min(score, 100);
   };
 
   const profileCompletionPercent = calculateProfileCompletion();
+
+  const missingProfileFields: string[] = [];
+  if (!displayPhone || displayPhone === 'Not added yet' || displayPhone.replace(/\D/g, '').length < 10) {
+    missingProfileFields.push('Phone Number');
+  }
+  if (!workerProfile?.profilePhoto) {
+    missingProfileFields.push('Real Profile Photo');
+  }
+  if (!workerProfile?.state || !workerProfile?.pincode) {
+    missingProfileFields.push('City, State & PIN Code');
+  }
+  if (((workerProfile?.skills?.length || 0) + (workerProfile?.customSkills?.length || 0)) === 0) {
+    missingProfileFields.push('Vocational Skills');
+  }
+  if (!userProfile?.onboardingCompleted) {
+    missingProfileFields.push('Complete 7-Step Profile');
+  }
 
   // Jobs under 50km
   const jobsNearYou = jobs
@@ -333,33 +360,41 @@ export const WorkerDashboard: React.FC<WorkerDashboardProps> = ({
                   {workerProfile?.profilePhoto || userProfile?.profilePhoto ? (
                     <img
                       src={workerProfile?.profilePhoto || userProfile?.profilePhoto}
-                      alt={workerProfile?.fullName || userProfile?.name}
+                      alt={displayFullName}
                       className="w-20 h-20 rounded-2xl object-cover border-3 border-white/60 shadow-md"
                     />
                   ) : (
                     <div className="w-20 h-20 rounded-2xl bg-white/20 backdrop-blur-md text-white flex items-center justify-center font-black text-2xl border border-white/30">
-                      {(workerProfile?.fullName || userProfile?.name || 'W').charAt(0).toUpperCase()}
+                      {displayFullName.charAt(0).toUpperCase()}
                     </div>
                   )}
 
                   <div>
                     <div className="flex items-center gap-2">
                       <span className="text-[11px] font-bold uppercase tracking-wider bg-white/20 text-white px-2.5 py-0.5 rounded-full">
-                        Job Seeker Hub
+                        Finding Jobs &bull; Job Seeker Hub
                       </span>
                       <span className="text-[11px] font-semibold text-emerald-300 flex items-center gap-1">
-                        <ShieldCheck className="w-3.5 h-3.5" /> Real Photo & 18+ Verified
+                        <ShieldCheck className="w-3.5 h-3.5" /> {profileCompletionPercent === 100 ? '100% Profile Complete' : `${profileCompletionPercent}% Profile Saved`}
                       </span>
                     </div>
                     <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight mt-1 text-white">
-                      Welcome, {workerProfile?.fullName || userProfile?.name}!
+                      Welcome, {displayFullName}!
                     </h1>
-                    <p className="text-blue-100 text-xs sm:text-sm mt-0.5 flex items-center gap-2">
-                      <MapPin className="w-3.5 h-3.5 text-amber-300 shrink-0" />
-                      <span>
+                    <p className="text-blue-100 text-xs sm:text-sm mt-0.5 flex flex-wrap items-center gap-2.5">
+                      <span className="flex items-center gap-1">
+                        <MapPin className="w-3.5 h-3.5 text-amber-300 shrink-0" />
                         {workerProfile?.city ? `${workerProfile.city}, ` : ''}{workerProfile?.state || 'India'}
                         {workerProfile?.pincode ? ` (${workerProfile.pincode})` : ''}
                       </span>
+                      <span>&bull;</span>
+                      <span>{displayEmail}</span>
+                      {displayPhone !== 'Not added yet' && (
+                        <>
+                          <span>&bull;</span>
+                          <span>{displayPhone}</span>
+                        </>
+                      )}
                     </p>
                   </div>
                 </div>
@@ -387,7 +422,7 @@ export const WorkerDashboard: React.FC<WorkerDashboardProps> = ({
                     className="py-2.5 px-4 rounded-2xl bg-white/15 hover:bg-white/25 text-white font-bold text-xs backdrop-blur-xs transition-all flex items-center gap-1.5 cursor-pointer"
                   >
                     <Edit3 className="w-3.5 h-3.5" />
-                    <span>Edit Profile</span>
+                    <span>{profileCompletionPercent < 100 ? 'Complete 100% Profile' : 'Edit Profile'}</span>
                   </button>
                 </div>
               </div>
@@ -397,9 +432,9 @@ export const WorkerDashboard: React.FC<WorkerDashboardProps> = ({
                 <div className="flex items-center justify-between text-xs font-bold text-white mb-2">
                   <span className="flex items-center gap-1.5">
                     <CheckCircle2 className="w-4 h-4 text-emerald-300" />
-                    Profile Completeness
+                    Complete your 100% Profile to find the Best Jobs in India
                   </span>
-                  <span>{profileCompletionPercent}%</span>
+                  <span>{profileCompletionPercent}% Completed</span>
                 </div>
                 <div className="w-full bg-white/20 h-2.5 rounded-full overflow-hidden">
                   <div
@@ -407,12 +442,100 @@ export const WorkerDashboard: React.FC<WorkerDashboardProps> = ({
                     style={{ width: `${profileCompletionPercent}%` }}
                   />
                 </div>
-                {profileCompletionPercent < 100 && (
-                  <p className="text-[11px] text-blue-100 mt-2">
-                    Tip: Complete your preferred locations and vocational certificates to rank higher in employer searches.
-                  </p>
-                )}
               </div>
+            </div>
+
+            {/* BASIC DETAILS & 100% PROFILE COMPLETION CARD */}
+            <div className="bg-white rounded-3xl p-6 sm:p-7 shadow-xs border-2 border-blue-100 space-y-5">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-gray-100 pb-4">
+                <div>
+                  <div className="flex items-center gap-2">
+                    <span className="px-2.5 py-0.5 rounded-full bg-blue-50 text-[#2563EB] text-[10px] font-black uppercase tracking-wider">
+                      Your Saved Account & Basic Details
+                    </span>
+                    <span className="px-2.5 py-0.5 rounded-full bg-emerald-50 text-emerald-700 text-[10px] font-black uppercase">
+                      Role: Finding Jobs (Job Seeker)
+                    </span>
+                  </div>
+                  <h2 className="text-lg font-extrabold text-gray-900 mt-1">
+                    Basic Profile Information &bull; {profileCompletionPercent}% Profile Completed
+                  </h2>
+                </div>
+                <button
+                  type="button"
+                  onClick={onEditProfile}
+                  className="px-5 py-2.5 rounded-xl bg-[#2563EB] hover:bg-blue-700 text-white font-bold text-xs shadow-sm transition-all flex items-center gap-2 cursor-pointer self-start sm:self-auto"
+                >
+                  <Edit3 className="w-3.5 h-3.5" />
+                  <span>
+                    {profileCompletionPercent < 100
+                      ? 'Complete Your 100% Profile Now'
+                      : 'Update Profile Details'}
+                  </span>
+                </button>
+              </div>
+
+              {/* Basic Details Grid (Name, Email, Phone Number, Location & Skills) */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200/80">
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-gray-400 block">
+                    Full Name
+                  </span>
+                  <span className="text-sm font-extrabold text-gray-900 mt-1 block truncate">
+                    {displayFullName}
+                  </span>
+                </div>
+                <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200/80">
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-gray-400 block">
+                    Email Address
+                  </span>
+                  <span className="text-sm font-extrabold text-gray-900 mt-1 block truncate">
+                    {displayEmail}
+                  </span>
+                </div>
+                <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200/80">
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-gray-400 block">
+                    Phone Number
+                  </span>
+                  <span className="text-sm font-extrabold text-gray-900 mt-1 block truncate">
+                    {displayPhone}
+                  </span>
+                </div>
+                <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200/80">
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-gray-400 block">
+                    Location & Skills
+                  </span>
+                  <span className="text-sm font-extrabold text-gray-900 mt-1 block truncate">
+                    {workerProfile?.city || workerProfile?.state
+                      ? `${workerProfile?.city ? `${workerProfile.city}, ` : ''}${workerProfile?.state || ''}`
+                      : 'Location pending'}{' '}
+                    &bull; {(workerProfile?.skills?.length || 0) + (workerProfile?.customSkills?.length || 0)} Skills
+                  </span>
+                </div>
+              </div>
+
+              {/* 100% Profile Completion Callout */}
+              {profileCompletionPercent < 100 && (
+                <div className="p-4 sm:p-5 rounded-2xl bg-gradient-to-r from-amber-50 via-orange-50 to-amber-50 border border-amber-200 flex flex-col md:flex-row md:items-center justify-between gap-4">
+                  <div className="space-y-1">
+                    <p className="text-sm font-black text-amber-950 flex items-center gap-2">
+                      <Sparkles className="w-4 h-4 text-amber-600 shrink-0" />
+                      <span>Complete your 100% Profile to find the Best Jobs in India!</span>
+                    </p>
+                    <p className="text-xs text-amber-800 leading-relaxed">
+                      Your basic details are saved across all devices. Complete your remaining steps ({missingProfileFields.join(', ')}) so top verified employers in India can shortlist and hire you faster.
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={onEditProfile}
+                    className="px-5 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-600 text-slate-950 font-black text-xs shadow-xs transition-all shrink-0 cursor-pointer flex items-center gap-1.5 self-start md:self-center"
+                  >
+                    <span>Complete 100% Profile</span>
+                    <ArrowRight className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+              )}
             </div>
 
             {/* Primary Spotlight Card: Employers Who Contacted You */}
@@ -758,21 +881,26 @@ export const WorkerDashboard: React.FC<WorkerDashboardProps> = ({
                 {workerProfile?.profilePhoto ? (
                   <img
                     src={workerProfile.profilePhoto}
-                    alt={workerProfile.fullName}
+                    alt={displayFullName}
                     className="w-20 h-20 rounded-2xl object-cover border-2 border-[#2563EB] shadow-md"
                   />
                 ) : (
                   <div className="w-20 h-20 rounded-2xl bg-blue-100 text-[#2563EB] font-bold text-2xl flex items-center justify-center">
-                    {(workerProfile?.fullName || 'W').charAt(0)}
+                    {displayFullName.charAt(0).toUpperCase()}
                   </div>
                 )}
                 <div>
-                  <h2 className="text-2xl font-bold text-gray-900">{workerProfile?.fullName}</h2>
-                  <p className="text-xs text-gray-500 mt-0.5 flex items-center gap-1.5">
-                    <MapPin className="w-3.5 h-3.5 text-amber-500" />
-                    <span>
-                      {workerProfile?.city ? `${workerProfile.city}, ` : ''}{workerProfile?.state} ({workerProfile?.pincode})
+                  <h2 className="text-2xl font-bold text-gray-900">{displayFullName}</h2>
+                  <p className="text-xs text-gray-500 mt-0.5 flex flex-wrap items-center gap-2">
+                    <span className="flex items-center gap-1">
+                      <MapPin className="w-3.5 h-3.5 text-amber-500" />
+                      {workerProfile?.city ? `${workerProfile.city}, ` : ''}{workerProfile?.state || 'India'}{' '}
+                      {workerProfile?.pincode ? `(${workerProfile.pincode})` : ''}
                     </span>
+                    <span>&bull;</span>
+                    <span>{displayEmail}</span>
+                    <span>&bull;</span>
+                    <span>{displayPhone}</span>
                   </p>
                 </div>
               </div>
@@ -783,11 +911,29 @@ export const WorkerDashboard: React.FC<WorkerDashboardProps> = ({
                 className="px-5 py-2.5 rounded-2xl bg-[#2563EB] hover:bg-blue-700 text-white font-bold text-xs shadow-md transition-all flex items-center gap-2 cursor-pointer self-start sm:self-auto"
               >
                 <Edit3 className="w-4 h-4" />
-                <span>Edit Full Profile</span>
+                <span>{profileCompletionPercent < 100 ? 'Complete 100% Profile' : 'Edit Full Profile'}</span>
               </button>
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+              <div className="p-4 rounded-2xl bg-slate-50 border border-slate-100">
+                <span className="text-[10px] uppercase font-bold text-gray-400 block">Email Address</span>
+                <span className="text-sm font-bold text-gray-900 mt-1 block truncate">
+                  {displayEmail}
+                </span>
+              </div>
+              <div className="p-4 rounded-2xl bg-slate-50 border border-slate-100">
+                <span className="text-[10px] uppercase font-bold text-gray-400 block">Phone Number</span>
+                <span className="text-sm font-bold text-gray-900 mt-1 block">
+                  {displayPhone}
+                </span>
+              </div>
+              <div className="p-4 rounded-2xl bg-slate-50 border border-slate-100">
+                <span className="text-[10px] uppercase font-bold text-gray-400 block">Profile Completion</span>
+                <span className="text-sm font-bold text-[#2563EB] mt-1 block">
+                  {profileCompletionPercent}% Completed
+                </span>
+              </div>
               <div className="p-4 rounded-2xl bg-slate-50 border border-slate-100">
                 <span className="text-[10px] uppercase font-bold text-gray-400 block">Gender</span>
                 <span className="text-sm font-bold text-gray-900 mt-1 block capitalize">

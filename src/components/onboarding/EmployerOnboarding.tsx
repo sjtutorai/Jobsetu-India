@@ -31,7 +31,7 @@ interface EmployerOnboardingProps {
 const TOTAL_STEPS = 5;
 
 export const EmployerOnboarding: React.FC<EmployerOnboardingProps> = ({ onComplete, onCancel }) => {
-  const { currentUser, userProfile, employerProfile, saveEmployerProfile } = useAuth();
+  const { currentUser, userProfile, employerProfile, saveEmployerProfile, saveDraftEmployerProfile } = useAuth();
 
   const [currentStep, setCurrentStep] = useState(1);
   const [submitting, setSubmitting] = useState(false);
@@ -95,6 +95,42 @@ export const EmployerOnboarding: React.FC<EmployerOnboardingProps> = ({ onComple
     'AI GSTIN Board Audit',
     'Review'
   ];
+
+  const buildCurrentDraft = () => {
+    const draft: any = {
+      ownerName: ownerName.trim() || userProfile?.name || '',
+      ownerEmail: ownerEmail.trim() || userProfile?.email || currentUser?.email || '',
+      ownerPhone: ownerPhone.trim() || userProfile?.phone || '',
+      designation: designation.trim(),
+      businessName: businessName.trim(),
+      businessCategory,
+      businessDescription: businessDescription.trim(),
+      businessLogo: businessLogo || businessImages[0] || '',
+      businessImages,
+      boardGstinVerifiedByAI,
+      aiBoardVerificationSummary,
+      website: website.trim(),
+      state,
+      district: district.trim(),
+      city: city.trim(),
+      area: area.trim(),
+      pincode: pincode.trim(),
+      businessAddress: businessAddress.trim(),
+      documentNumber: documentNumber.trim()
+    };
+    if (typeof lat === 'number') draft.lat = lat;
+    if (typeof lng === 'number') draft.lng = lng;
+    return draft;
+  };
+
+  const handleSaveDraftAndExit = async () => {
+    try {
+      await saveDraftEmployerProfile(buildCurrentDraft());
+    } catch {
+      // ignore
+    }
+    onCancel();
+  };
 
   const handleLogoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -265,6 +301,8 @@ export const EmployerOnboarding: React.FC<EmployerOnboardingProps> = ({ onComple
 
   const handleNext = () => {
     if (validateStep(currentStep)) {
+      // Save partial progress to Firestore so if user logs in on another device, details are preserved
+      saveDraftEmployerProfile(buildCurrentDraft()).catch(() => {});
       if (currentStep < TOTAL_STEPS) {
         setCurrentStep((prev) => prev + 1);
         window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -277,10 +315,11 @@ export const EmployerOnboarding: React.FC<EmployerOnboardingProps> = ({ onComple
   const handleBack = () => {
     setErrorMsg(null);
     if (currentStep > 1) {
+      saveDraftEmployerProfile(buildCurrentDraft()).catch(() => {});
       setCurrentStep((prev) => prev - 1);
       window.scrollTo({ top: 0, behavior: 'smooth' });
     } else {
-      onCancel();
+      handleSaveDraftAndExit();
     }
   };
 
@@ -336,7 +375,7 @@ export const EmployerOnboarding: React.FC<EmployerOnboardingProps> = ({ onComple
                 JOB<span className="text-[#2563EB]">SETU</span>
               </span>
               <span className="px-2 py-0.5 rounded text-xs font-bold bg-amber-100 text-amber-800">
-                Employer Onboarding
+                Employer Onboarding (100% Business Profile)
               </span>
             </div>
             <p className="text-xs text-gray-500 mt-1">
@@ -344,10 +383,11 @@ export const EmployerOnboarding: React.FC<EmployerOnboardingProps> = ({ onComple
             </p>
           </div>
           <button
-            onClick={onCancel}
-            className="text-xs font-semibold text-gray-500 hover:text-gray-800 p-2 rounded-lg hover:bg-gray-200 transition-colors cursor-pointer"
+            type="button"
+            onClick={handleSaveDraftAndExit}
+            className="text-xs font-bold text-amber-800 bg-amber-50 hover:bg-amber-100 border border-amber-200 px-3.5 py-2 rounded-xl transition-colors cursor-pointer"
           >
-            Save & Exit
+            Save Progress & Go to Dashboard
           </button>
         </div>
 

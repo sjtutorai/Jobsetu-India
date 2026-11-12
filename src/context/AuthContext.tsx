@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useEffect, useState } from 'react';
+import React, { createContext, useContext, useEffect, useRef, useState } from 'react';
 import {
   User as FirebaseUser,
   onAuthStateChanged,
@@ -37,9 +37,9 @@ interface AuthContextType {
   loading: boolean;
   intendedRole: UserRole;
   setIntendedRole: (role: UserRole) => void;
-  loginWithGoogle: (role?: UserRole) => Promise<UserRole>;
+  loginWithGoogle: (role?: UserRole, isSignup?: boolean) => Promise<{ role: UserRole; isNewUser: boolean }>;
   loginWithEmail: (email: string, pass: string) => Promise<UserRole>;
-  registerWithEmail: (name: string, email: string, pass: string, role: UserRole) => Promise<void>;
+  registerWithEmail: (name: string, email: string, pass: string, role: UserRole, phone?: string) => Promise<void>;
   sendPhoneOtp: (phoneNumber: string, appVerifier: RecaptchaVerifier) => Promise<ConfirmationResult>;
   verifyPhoneOtp: (confirmationResult: ConfirmationResult, otp: string, role?: UserRole) => Promise<void>;
   sendPasswordReset: (email: string) => Promise<void>;
@@ -48,7 +48,9 @@ interface AuthContextType {
   enableAdditionalRole: (role: UserRole) => Promise<void>;
   setInitialRole: (role: UserRole) => Promise<void>;
   saveWorkerProfile: (profile: Omit<WorkerProfile, 'uid' | 'submittedAt' | 'updatedAt'>) => Promise<void>;
+  saveDraftWorkerProfile: (partialProfile: Partial<WorkerProfile>) => Promise<void>;
   saveEmployerProfile: (profile: Omit<EmployerProfile, 'uid' | 'submittedAt' | 'updatedAt' | 'verificationStatus' | 'emailVerified' | 'phoneVerified'>) => Promise<void>;
+  saveDraftEmployerProfile: (partialProfile: Partial<EmployerProfile>) => Promise<void>;
   refreshProfile: () => Promise<void>;
 }
 
@@ -61,6 +63,7 @@ interface StoredEmailAccount {
   uid: string;
   name: string;
   email: string;
+  phone?: string;
   passwordHash: string;
   role: UserRole;
 }
@@ -84,18 +87,18 @@ function saveStoredEmailAccount(account: StoredEmailAccount) {
   }
 }
 
-function buildSyntheticFirebaseUser(uid: string, name: string, email: string): FirebaseUser {
+function buildSyntheticFirebaseUser(uid: string, name: string, email: string, phone?: string): FirebaseUser {
   return {
     uid,
     displayName: name,
     email,
     emailVerified: true,
     isAnonymous: false,
-    phoneNumber: null,
+    phoneNumber: phone || null,
     photoURL: null,
     providerId: 'password',
     metadata: {},
-    providerData: [{ providerId: 'password', uid: email, displayName: name, email, phoneNumber: null, photoURL: null }],
+    providerData: [{ providerId: 'password', uid: email, displayName: name, email, phoneNumber: phone || null, photoURL: null }],
     refreshToken: '',
     tenantId: null,
     delete: async () => {},
@@ -104,6 +107,10 @@ function buildSyntheticFirebaseUser(uid: string, name: string, email: string): F
     reload: async () => {},
     toJSON: () => ({ uid, displayName: name, email })
   } as unknown as FirebaseUser;
+}
+
+function stripUndefined<T extends Record<string, any>>(obj: T): Record<string, any> {
+  return Object.fromEntries(Object.entries(obj).filter(([_, v]) => v !== undefined));
 }
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
@@ -116,9 +123,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     return (localStorage.getItem('jobsetu_intended_role') as UserRole) || 'worker';
   });
 
+  // Guard ref so onAuthStateChanged does not race with explicit registerWithEmail / loginWithEmail
+  const isManualAuthInProgress = useRef(false);
+
   const updateIntendedRole = (role: UserRole) => {
     setIntendedRole(role);
-    localStorage.setItem('jobsetu_intended_role', role);
+    try {
+      localStorage.setItem('jobsetu_intended_role', role);
+    } catch {
+      // ignore
+    }
   };
 
   // Test connection on boot as mandated
@@ -127,7 +141,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }, []);
 
   // Helper so Firestore operations never hang the UI when offline or slow
-  const withTimeout = <T,>(promise: Promise<T>, ms = 2500): Promise<T> => {
+  const withTimeout = <T,>(promise: Promise<T>, ms = 3500): Promise<T> => {
     return Promise.race([
       promise,
       new Promise<T>((_, reject) =>
@@ -136,13 +150,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     ]);
   };
 
-  const fetchUserData = async (firebaseUser: FirebaseUser, fallbackRole?: UserRole) => {
+  const fetchUserData = async (
+    firebaseUser: FirebaseUser,
+    fallbackRole?: UserRole
+  ): Promise<{ role: UserRole; isNewUser: boolean }> => {
     const uid = firebaseUser.uid;
     const cachedUserKey = `jobsetu_user_${uid}`;
     const cachedWorkerKey = `jobsetu_worker_${uid}`;
     const cachedEmployerKey = `jobsetu_employer_${uid}`;
 
-    // Immediately hydrate from local cache if available so UI never stalls
+    // Hydrate from local cache for this specific UID if available
     try {
       const cachedUser = localStorage.getItem(cachedUserKey);
       if (cachedUser) setUserProfile(JSON.parse(cachedUser));
@@ -158,14 +175,45 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const userRef = doc(db, 'users', uid);
       let userSnap;
       try {
-        userSnap = await withTimeout(getDoc(userRef), 2500);
+        userSnap = await withTimeout(getDoc(userRef), 3500);
       } catch (err: any) {
         console.warn('[JOBSETU] Warning fetching user document (using fast fallback):', err?.message);
       }
 
+      // Also fetch worker & employer profiles in parallel for this UID so we know what profiles exist
+      let fetchedWorker: WorkerProfile | null = null;
+      let fetchedEmployer: EmployerProfile | null = null;
+
+      await Promise.allSettled([
+        withTimeout(getDoc(doc(db, 'workerProfiles', uid)), 3000)
+          .then((wSnap) => {
+            if (wSnap.exists()) {
+              fetchedWorker = wSnap.data() as WorkerProfile;
+              setWorkerProfile(fetchedWorker);
+              try {
+                localStorage.setItem(cachedWorkerKey, JSON.stringify(fetchedWorker));
+              } catch {}
+            }
+          })
+          .catch(() => {}),
+        withTimeout(getDoc(doc(db, 'employerProfiles', uid)), 3000)
+          .then((eSnap) => {
+            if (eSnap.exists()) {
+              fetchedEmployer = eSnap.data() as EmployerProfile;
+              setEmployerProfile(fetchedEmployer);
+              try {
+                localStorage.setItem(cachedEmployerKey, JSON.stringify(fetchedEmployer));
+              } catch {}
+            }
+          })
+          .catch(() => {})
+      ]);
+
       let profileData: UserProfile;
+      let isNewUser = false;
 
       if (!userSnap || !userSnap.exists()) {
+        isNewUser = true;
         let cachedProfile: UserProfile | null = null;
         try {
           const raw = localStorage.getItem(cachedUserKey);
@@ -174,14 +222,19 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           // ignore
         }
 
-        const initialRole = fallbackRole || cachedProfile?.activeRole || intendedRole || 'worker';
+        // Determine initial role: if employerProfile exists, use employer; else fallbackRole or cachedProfile
+        const inferredRole: UserRole =
+          fetchedEmployer && !fetchedWorker
+            ? 'employer'
+            : fallbackRole || cachedProfile?.activeRole || intendedRole || 'worker';
+
         const newProfile: UserProfile = cachedProfile || {
           uid,
           name: firebaseUser.displayName || (firebaseUser.email ? firebaseUser.email.split('@')[0] : 'User'),
           email: firebaseUser.email || '',
           phone: firebaseUser.phoneNumber || '',
-          enabledRoles: [initialRole],
-          activeRole: initialRole,
+          enabledRoles: [inferredRole],
+          activeRole: inferredRole,
           profilePhoto: firebaseUser.photoURL || '',
           preferredLanguage: 'English',
           accountStatus: 'active',
@@ -190,91 +243,75 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           updatedAt: serverTimestamp()
         };
 
-        // Fire setDoc non-blockingly so offline mode never freezes the loading screen
-        setDoc(userRef, newProfile).catch((err) => {
+        setDoc(userRef, stripUndefined(newProfile), { merge: true }).catch((err) => {
           console.warn('[JOBSETU] Notice: setDoc queued or delayed in offline mode:', err);
         });
 
         profileData = newProfile;
       } else {
         profileData = userSnap.data() as UserProfile;
+        // If user document exists in Firestore, ALWAYS trust its saved activeRole across devices!
+        if (!profileData.activeRole) {
+          if (profileData.enabledRoles?.includes('employer') && !profileData.enabledRoles?.includes('worker')) {
+            profileData.activeRole = 'employer';
+          } else if (fetchedEmployer && !fetchedWorker) {
+            profileData.activeRole = 'employer';
+          } else {
+            profileData.activeRole = fallbackRole || 'worker';
+          }
+        }
       }
 
+      const resolvedRole: UserRole = profileData.activeRole || 'worker';
+      updateIntendedRole(resolvedRole);
       setUserProfile(profileData);
+
       try {
         localStorage.setItem(cachedUserKey, JSON.stringify(profileData));
       } catch {
         // ignore
       }
 
-      // Fetch worker & employer profiles in parallel with timeout
-      const rolePromises: Promise<void>[] = [];
-
-      if (profileData.enabledRoles?.includes('worker')) {
-        rolePromises.push(
-          withTimeout(getDoc(doc(db, 'workerProfiles', uid)), 2500)
-            .then((wSnap) => {
-              if (wSnap.exists()) {
-                const wData = wSnap.data() as WorkerProfile;
-                setWorkerProfile(wData);
-                try {
-                  localStorage.setItem(cachedWorkerKey, JSON.stringify(wData));
-                } catch {}
-              }
-            })
-            .catch((e) => {
-              console.warn('Worker profile fetch notice:', e);
-            })
-        );
-      }
-
-      if (profileData.enabledRoles?.includes('employer')) {
-        rolePromises.push(
-          withTimeout(getDoc(doc(db, 'employerProfiles', uid)), 2500)
-            .then((eSnap) => {
-              if (eSnap.exists()) {
-                const eData = eSnap.data() as EmployerProfile;
-                setEmployerProfile(eData);
-                try {
-                  localStorage.setItem(cachedEmployerKey, JSON.stringify(eData));
-                } catch {}
-              }
-            })
-            .catch((e) => {
-              console.warn('Employer profile fetch notice:', e);
-            })
-        );
-      }
-
-      await Promise.allSettled(rolePromises);
-      return profileData.activeRole || fallbackRole || intendedRole || 'worker';
+      return { role: resolvedRole, isNewUser };
     } catch (error) {
       console.warn('Error fetching user records:', error);
-      return fallbackRole || intendedRole || 'worker';
+      return { role: fallbackRole || intendedRole || 'worker', isNewUser: false };
     }
   };
 
   useEffect(() => {
-    // Hard safety timeout: guarantee loading state clears within 2 seconds even if network hangs
     const safetyTimer = setTimeout(() => {
       setLoading(false);
-    }, 2000);
+    }, 3000);
 
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
+      if (isManualAuthInProgress.current) {
+        return;
+      }
       try {
         if (firebaseUser) {
           localStorage.removeItem(ACTIVE_LOCAL_USER_KEY);
-          setCurrentUser(firebaseUser);
           await fetchUserData(firebaseUser);
+          setCurrentUser(firebaseUser);
         } else {
           // Check if there is an active local email session
           try {
             const rawSession = localStorage.getItem(ACTIVE_LOCAL_USER_KEY);
             if (rawSession) {
               const session = JSON.parse(rawSession) as StoredEmailAccount;
-              const syntheticUser = buildSyntheticFirebaseUser(session.uid, session.name, session.email);
+              const syntheticUser = buildSyntheticFirebaseUser(
+                session.uid,
+                session.name,
+                session.email,
+                session.phone
+              );
+              const { role: savedRole } = await fetchUserData(syntheticUser);
+              if (savedRole !== session.role) {
+                session.role = savedRole;
+                saveStoredEmailAccount(session);
+                localStorage.setItem(ACTIVE_LOCAL_USER_KEY, JSON.stringify(session));
+              }
               setCurrentUser(syntheticUser);
-              await fetchUserData(syntheticUser, session.role);
               setLoading(false);
               clearTimeout(safetyTimer);
               return;
@@ -299,24 +336,46 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     };
   }, []);
 
-  const loginWithGoogle = async (role?: UserRole): Promise<UserRole> => {
-    const selectedRole = role || intendedRole;
-    updateIntendedRole(selectedRole);
-    const result = await signInWithPopup(auth, googleProvider);
-    if (result.user) {
-      localStorage.removeItem(ACTIVE_LOCAL_USER_KEY);
-      return await fetchUserData(result.user, selectedRole);
+  const loginWithGoogle = async (
+    role?: UserRole,
+    isSignup?: boolean
+  ): Promise<{ role: UserRole; isNewUser: boolean }> => {
+    isManualAuthInProgress.current = true;
+    try {
+      const result = await signInWithPopup(auth, googleProvider);
+      if (result.user) {
+        localStorage.removeItem(ACTIVE_LOCAL_USER_KEY);
+        // Only pass fallback role if signing up; if signing in, let Firestore's saved role win!
+        const { role: resolvedRole, isNewUser } = await fetchUserData(
+          result.user,
+          isSignup ? role : undefined
+        );
+        // If user explicitly chose a role during signup and isNewUser, ensure it is persisted
+        if (isSignup && role && isNewUser) {
+          await setInitialRoleForUid(result.user.uid, role, result.user.displayName || '', result.user.email || '');
+          setCurrentUser(result.user);
+          return { role, isNewUser };
+        }
+        setCurrentUser(result.user);
+        return { role: resolvedRole, isNewUser };
+      }
+      return { role: role || intendedRole || 'worker', isNewUser: false };
+    } finally {
+      isManualAuthInProgress.current = false;
     }
-    return selectedRole;
   };
 
   const loginWithEmail = async (email: string, pass: string): Promise<UserRole> => {
     const cleanEmail = email.trim().toLowerCase();
+    isManualAuthInProgress.current = true;
     try {
       const result = await signInWithEmailAndPassword(auth, cleanEmail, pass);
       if (result.user) {
         localStorage.removeItem(ACTIVE_LOCAL_USER_KEY);
-        return await fetchUserData(result.user);
+        // Do NOT pass intendedRole here so Firestore's saved activeRole ('employer' or 'worker') is always honored!
+        const { role: resolvedRole } = await fetchUserData(result.user, undefined);
+        setCurrentUser(result.user);
+        return resolvedRole;
       }
       return intendedRole || 'worker';
     } catch (err: any) {
@@ -328,7 +387,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         const accounts = getStoredEmailAccounts();
         const existing = accounts[cleanEmail];
         const safeUid = existing?.uid || `usr_${cleanEmail.replace(/[^a-z0-9]/g, '_').slice(0, 48)}`;
-        const displayName = existing?.name || cleanEmail.split('@')[0];
 
         if (existing && existing.passwordHash && existing.passwordHash !== btoa(pass)) {
           const credErr: any = new Error('Invalid email or password. Please verify your credentials.');
@@ -336,28 +394,130 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           throw credErr;
         }
 
-        const accountToSave: StoredEmailAccount = existing || {
+        // First check Firestore for this user's saved profile & role (critical when logging in from another device!)
+        const tempUser = buildSyntheticFirebaseUser(
+          safeUid,
+          existing?.name || cleanEmail.split('@')[0],
+          cleanEmail,
+          existing?.phone
+        );
+        const { role: firestoreRole } = await fetchUserData(tempUser, existing?.role);
+
+        // Read the hydrated profile from Firestore if it existed
+        const userRef = doc(db, 'users', safeUid);
+        let remoteData: UserProfile | null = null;
+        try {
+          const snap = await withTimeout(getDoc(userRef), 2500);
+          if (snap.exists()) {
+            remoteData = snap.data() as UserProfile;
+          }
+        } catch {}
+
+        const resolvedName = remoteData?.name || existing?.name || cleanEmail.split('@')[0];
+        const resolvedPhone = remoteData?.phone || existing?.phone || '';
+        const resolvedRole: UserRole = remoteData?.activeRole || firestoreRole || existing?.role || 'worker';
+
+        const accountToSave: StoredEmailAccount = {
           uid: safeUid,
-          name: displayName,
+          name: resolvedName,
           email: cleanEmail,
+          phone: resolvedPhone,
           passwordHash: btoa(pass),
-          role: intendedRole || 'worker'
+          role: resolvedRole
         };
         saveStoredEmailAccount(accountToSave);
         localStorage.setItem(ACTIVE_LOCAL_USER_KEY, JSON.stringify(accountToSave));
 
-        const syntheticUser = buildSyntheticFirebaseUser(accountToSave.uid, accountToSave.name, accountToSave.email);
+        const syntheticUser = buildSyntheticFirebaseUser(
+          accountToSave.uid,
+          accountToSave.name,
+          accountToSave.email,
+          accountToSave.phone
+        );
+        updateIntendedRole(resolvedRole);
         setCurrentUser(syntheticUser);
-        return await fetchUserData(syntheticUser, accountToSave.role);
+        return resolvedRole;
       }
       throw err;
+    } finally {
+      isManualAuthInProgress.current = false;
     }
   };
 
-  const registerWithEmail = async (name: string, email: string, pass: string, role: UserRole) => {
+  const createInitialRoleDraftInFirestore = async (
+    uid: string,
+    role: UserRole,
+    name: string,
+    email: string,
+    phone: string
+  ) => {
+    if (role === 'employer') {
+      const empRef = doc(db, 'employerProfiles', uid);
+      const draftEmployer: Partial<EmployerProfile> = {
+        uid,
+        ownerName: name,
+        ownerEmail: email,
+        ownerPhone: phone || '',
+        designation: 'Proprietor / Business Owner',
+        businessName: '',
+        businessCategory: 'Coaching Classes / Education Institute',
+        state: '',
+        pincode: '',
+        verificationStatus: 'Pending',
+        emailVerified: true,
+        phoneVerified: Boolean(phone),
+        updatedAt: serverTimestamp()
+      };
+      setEmployerProfile((prev) => (prev ? { ...prev, ...draftEmployer } : (draftEmployer as EmployerProfile)));
+      try {
+        localStorage.setItem(`jobsetu_employer_${uid}`, JSON.stringify(draftEmployer));
+      } catch {}
+      await setDoc(empRef, stripUndefined(draftEmployer), { merge: true }).catch(() => {});
+    } else {
+      const workerRef = doc(db, 'workerProfiles', uid);
+      const draftWorker: Partial<WorkerProfile> = {
+        uid,
+        fullName: name,
+        phone: phone || '',
+        email: email || '',
+        ageEligibilityConfirmed: true,
+        gender: 'male',
+        country: 'India',
+        state: '',
+        pincode: '',
+        preferredLocations: [],
+        education: 'Higher secondary',
+        skills: [],
+        customSkills: [],
+        experience: 'Fresher',
+        jobPreferences: {
+          jobTypes: ['Full-time'],
+          expectedSalary: '',
+          availability: 'Immediate',
+          preferredLocations: []
+        },
+        updatedAt: serverTimestamp()
+      };
+      setWorkerProfile((prev) => (prev ? { ...prev, ...draftWorker } : (draftWorker as WorkerProfile)));
+      try {
+        localStorage.setItem(`jobsetu_worker_${uid}`, JSON.stringify(draftWorker));
+      } catch {}
+      await setDoc(workerRef, stripUndefined(draftWorker), { merge: true }).catch(() => {});
+    }
+  };
+
+  const registerWithEmail = async (
+    name: string,
+    email: string,
+    pass: string,
+    role: UserRole,
+    phone?: string
+  ) => {
     updateIntendedRole(role);
     const cleanEmail = email.trim().toLowerCase();
     const cleanName = name.trim();
+    const cleanPhone = (phone || '').trim();
+    isManualAuthInProgress.current = true;
 
     try {
       const result = await createUserWithEmailAndPassword(auth, cleanEmail, pass);
@@ -369,7 +529,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           uid: result.user.uid,
           name: cleanName,
           email: cleanEmail,
-          phone: '',
+          phone: cleanPhone,
           enabledRoles: [role],
           activeRole: role,
           profilePhoto: '',
@@ -379,10 +539,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           createdAt: serverTimestamp(),
           updatedAt: serverTimestamp()
         };
-        await setDoc(userRef, newProfile).catch(e => {
+        await setDoc(userRef, stripUndefined(newProfile), { merge: true }).catch((e) => {
           handleFirestoreError(e, OperationType.CREATE, `users/${result.user.uid}`);
         });
+        await createInitialRoleDraftInFirestore(result.user.uid, role, cleanName, cleanEmail, cleanPhone);
         setUserProfile(newProfile);
+        try {
+          localStorage.setItem(`jobsetu_user_${result.user.uid}`, JSON.stringify(newProfile));
+        } catch {}
+        setCurrentUser(result.user);
       }
     } catch (err: any) {
       if (
@@ -390,27 +555,26 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         err?.code === 'auth/configuration-not-found' ||
         err?.code === 'auth/network-request-failed'
       ) {
-        const accounts = getStoredEmailAccounts();
         const safeUid = `usr_${cleanEmail.replace(/[^a-z0-9]/g, '_').slice(0, 48)}`;
         const accountRecord: StoredEmailAccount = {
           uid: safeUid,
           name: cleanName,
           email: cleanEmail,
+          phone: cleanPhone,
           passwordHash: btoa(pass),
           role
         };
         saveStoredEmailAccount(accountRecord);
         localStorage.setItem(ACTIVE_LOCAL_USER_KEY, JSON.stringify(accountRecord));
 
-        const syntheticUser = buildSyntheticFirebaseUser(safeUid, cleanName, cleanEmail);
-        setCurrentUser(syntheticUser);
+        const syntheticUser = buildSyntheticFirebaseUser(safeUid, cleanName, cleanEmail, cleanPhone);
 
         const userRef = doc(db, 'users', safeUid);
         const newProfile: UserProfile = {
           uid: safeUid,
           name: cleanName,
           email: cleanEmail,
-          phone: '',
+          phone: cleanPhone,
           enabledRoles: [role],
           activeRole: role,
           profilePhoto: '',
@@ -420,13 +584,20 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           createdAt: serverTimestamp(),
           updatedAt: serverTimestamp()
         };
-        await setDoc(userRef, newProfile).catch(e => {
+        await setDoc(userRef, stripUndefined(newProfile), { merge: true }).catch((e) => {
           handleFirestoreError(e, OperationType.CREATE, `users/${safeUid}`);
         });
+        await createInitialRoleDraftInFirestore(safeUid, role, cleanName, cleanEmail, cleanPhone);
         setUserProfile(newProfile);
+        try {
+          localStorage.setItem(`jobsetu_user_${safeUid}`, JSON.stringify(newProfile));
+        } catch {}
+        setCurrentUser(syntheticUser);
         return;
       }
       throw err;
+    } finally {
+      isManualAuthInProgress.current = false;
     }
   };
 
@@ -439,6 +610,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const result = await confirmationResult.confirm(otp);
     if (result.user) {
       await fetchUserData(result.user, selectedRole);
+      setCurrentUser(result.user);
     }
   };
 
@@ -447,7 +619,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       await sendPasswordResetEmail(auth, email);
     } catch (err: any) {
       if (err?.code === 'auth/operation-not-allowed') {
-        // Gracefully resolve when email provider is in local-managed mode
         return;
       }
       throw err;
@@ -474,17 +645,29 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
     const updatedUser = { ...userProfile, activeRole: role };
     setUserProfile(updatedUser);
+    updateIntendedRole(role);
     try {
       localStorage.setItem(`jobsetu_user_${currentUser.uid}`, JSON.stringify(updatedUser));
+      const rawSession = localStorage.getItem(ACTIVE_LOCAL_USER_KEY);
+      if (rawSession) {
+        const session = JSON.parse(rawSession) as StoredEmailAccount;
+        session.role = role;
+        saveStoredEmailAccount(session);
+        localStorage.setItem(ACTIVE_LOCAL_USER_KEY, JSON.stringify(session));
+      }
     } catch {}
 
     const userRef = doc(db, 'users', currentUser.uid);
     withTimeout(
-      updateDoc(userRef, {
-        activeRole: role,
-        updatedAt: serverTimestamp()
-      }),
-      2500
+      setDoc(
+        userRef,
+        {
+          activeRole: role,
+          updatedAt: serverTimestamp()
+        },
+        { merge: true }
+      ),
+      3000
     ).catch((err) => {
       console.warn('Role switch sync notice:', err);
     });
@@ -503,41 +686,154 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     const userRef = doc(db, 'users', currentUser.uid);
     withTimeout(
-      updateDoc(userRef, {
-        enabledRoles: updatedRoles,
-        activeRole: role,
-        updatedAt: serverTimestamp()
-      }),
-      2500
+      setDoc(
+        userRef,
+        {
+          enabledRoles: updatedRoles,
+          activeRole: role,
+          updatedAt: serverTimestamp()
+        },
+        { merge: true }
+      ),
+      3000
     ).catch((err) => {
       console.warn('Enable role sync notice:', err);
     });
   };
 
-  const setInitialRole = async (role: UserRole) => {
-    if (!currentUser) return;
+  const setInitialRoleForUid = async (uid: string, role: UserRole, name: string, email: string, phone = '') => {
+    updateIntendedRole(role);
     setUserProfile((prev) => {
-      const next = prev ? { ...prev, enabledRoles: [role], activeRole: role } : null;
-      if (next) {
-        try {
-          localStorage.setItem(`jobsetu_user_${currentUser.uid}`, JSON.stringify(next));
-        } catch {}
-      }
+      const next: UserProfile = prev
+        ? { ...prev, enabledRoles: [role], activeRole: role }
+        : {
+            uid,
+            name: name || 'User',
+            email: email || '',
+            phone,
+            enabledRoles: [role],
+            activeRole: role,
+            accountStatus: 'active',
+            onboardingCompleted: false
+          };
+      try {
+        localStorage.setItem(`jobsetu_user_${uid}`, JSON.stringify(next));
+      } catch {}
       return next;
     });
-    updateIntendedRole(role);
 
-    const userRef = doc(db, 'users', currentUser.uid);
-    withTimeout(
-      updateDoc(userRef, {
-        enabledRoles: [role],
-        activeRole: role,
-        updatedAt: serverTimestamp()
-      }),
-      2500
+    try {
+      const rawSession = localStorage.getItem(ACTIVE_LOCAL_USER_KEY);
+      if (rawSession) {
+        const session = JSON.parse(rawSession) as StoredEmailAccount;
+        session.role = role;
+        saveStoredEmailAccount(session);
+        localStorage.setItem(ACTIVE_LOCAL_USER_KEY, JSON.stringify(session));
+      }
+    } catch {}
+
+    const userRef = doc(db, 'users', uid);
+    await withTimeout(
+      setDoc(
+        userRef,
+        {
+          uid,
+          enabledRoles: [role],
+          activeRole: role,
+          updatedAt: serverTimestamp()
+        },
+        { merge: true }
+      ),
+      3000
     ).catch((err) => {
       console.warn('Initial role sync notice:', err);
     });
+
+    await createInitialRoleDraftInFirestore(uid, role, name, email, phone);
+  };
+
+  const setInitialRole = async (role: UserRole) => {
+    if (!currentUser) return;
+    await setInitialRoleForUid(
+      currentUser.uid,
+      role,
+      userProfile?.name || currentUser.displayName || '',
+      userProfile?.email || currentUser.email || '',
+      userProfile?.phone || currentUser.phoneNumber || ''
+    );
+  };
+
+  const saveDraftWorkerProfile = async (partialProfile: Partial<WorkerProfile>) => {
+    if (!currentUser) return;
+    const uid = currentUser.uid;
+    const merged: WorkerProfile = {
+      uid,
+      fullName: partialProfile.fullName ?? workerProfile?.fullName ?? userProfile?.name ?? '',
+      phone: partialProfile.phone ?? workerProfile?.phone ?? userProfile?.phone ?? '',
+      email: partialProfile.email ?? workerProfile?.email ?? userProfile?.email ?? currentUser.email ?? '',
+      dateOfBirth: partialProfile.dateOfBirth ?? workerProfile?.dateOfBirth ?? '',
+      ageEligibilityConfirmed: partialProfile.ageEligibilityConfirmed ?? workerProfile?.ageEligibilityConfirmed ?? true,
+      gender: partialProfile.gender ?? workerProfile?.gender ?? 'male',
+      profilePhoto: partialProfile.profilePhoto ?? workerProfile?.profilePhoto ?? userProfile?.profilePhoto ?? '',
+      isPhotoVerifiedReal: partialProfile.isPhotoVerifiedReal ?? workerProfile?.isPhotoVerifiedReal ?? true,
+      country: 'India',
+      state: partialProfile.state ?? workerProfile?.state ?? '',
+      district: partialProfile.district ?? workerProfile?.district ?? '',
+      city: partialProfile.city ?? workerProfile?.city ?? '',
+      area: partialProfile.area ?? workerProfile?.area ?? '',
+      pincode: partialProfile.pincode ?? workerProfile?.pincode ?? '',
+      lat: partialProfile.lat ?? workerProfile?.lat,
+      lng: partialProfile.lng ?? workerProfile?.lng,
+      preferredLocations: partialProfile.preferredLocations ?? workerProfile?.preferredLocations ?? [],
+      education: partialProfile.education ?? workerProfile?.education ?? 'Higher secondary',
+      skills: partialProfile.skills ?? workerProfile?.skills ?? [],
+      customSkills: partialProfile.customSkills ?? workerProfile?.customSkills ?? [],
+      experience: partialProfile.experience ?? workerProfile?.experience ?? 'Fresher',
+      jobPreferences: partialProfile.jobPreferences ?? workerProfile?.jobPreferences ?? {
+        jobTypes: ['Full-time'],
+        expectedSalary: '₹15,000 - ₹25,000 / month',
+        availability: 'Immediate',
+        preferredLocations: []
+      },
+      updatedAt: serverTimestamp()
+    };
+
+    setWorkerProfile(merged);
+    if (merged.fullName || merged.phone || merged.profilePhoto) {
+      setUserProfile((prev) => {
+        if (!prev) return prev;
+        const next = {
+          ...prev,
+          name: merged.fullName || prev.name,
+          phone: merged.phone || prev.phone,
+          profilePhoto: merged.profilePhoto || prev.profilePhoto
+        };
+        try {
+          localStorage.setItem(`jobsetu_user_${uid}`, JSON.stringify(next));
+        } catch {}
+        return next;
+      });
+    }
+    try {
+      localStorage.setItem(`jobsetu_worker_${uid}`, JSON.stringify(merged));
+    } catch {}
+
+    await Promise.allSettled([
+      withTimeout(setDoc(doc(db, 'workerProfiles', uid), stripUndefined(merged), { merge: true }), 2500),
+      withTimeout(
+        setDoc(
+          doc(db, 'users', uid),
+          stripUndefined({
+            name: merged.fullName || undefined,
+            phone: merged.phone || undefined,
+            profilePhoto: merged.profilePhoto || undefined,
+            updatedAt: serverTimestamp()
+          }),
+          { merge: true }
+        ),
+        2500
+      )
+    ]);
   };
 
   const saveWorkerProfile = async (profileData: Omit<WorkerProfile, 'uid' | 'submittedAt' | 'updatedAt'>) => {
@@ -556,6 +852,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         ? {
             ...prev,
             name: profileData.fullName,
+            phone: profileData.phone || prev.phone,
             profilePhoto: profileData.profilePhoto || prev.profilePhoto,
             onboardingCompleted: true
           }
@@ -573,20 +870,97 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     const userRef = doc(db, 'users', currentUser.uid);
     await Promise.allSettled([
-      withTimeout(setDoc(workerRef, fullWorkerData), 2500),
+      withTimeout(setDoc(workerRef, stripUndefined(fullWorkerData), { merge: true }), 3000),
       withTimeout(
-        updateDoc(userRef, {
-          name: profileData.fullName,
-          profilePhoto: profileData.profilePhoto || userProfile?.profilePhoto || '',
-          onboardingCompleted: true,
-          updatedAt: serverTimestamp()
-        }),
+        setDoc(
+          userRef,
+          stripUndefined({
+            name: profileData.fullName,
+            phone: profileData.phone || userProfile?.phone || '',
+            profilePhoto: profileData.profilePhoto || userProfile?.profilePhoto || '',
+            onboardingCompleted: true,
+            updatedAt: serverTimestamp()
+          }),
+          { merge: true }
+        ),
+        3000
+      )
+    ]);
+  };
+
+  const saveDraftEmployerProfile = async (partialProfile: Partial<EmployerProfile>) => {
+    if (!currentUser) return;
+    const uid = currentUser.uid;
+    const merged: EmployerProfile = {
+      uid,
+      ownerName: partialProfile.ownerName ?? employerProfile?.ownerName ?? userProfile?.name ?? '',
+      ownerEmail: partialProfile.ownerEmail ?? employerProfile?.ownerEmail ?? userProfile?.email ?? currentUser.email ?? '',
+      ownerPhone: partialProfile.ownerPhone ?? employerProfile?.ownerPhone ?? userProfile?.phone ?? '',
+      designation: partialProfile.designation ?? employerProfile?.designation ?? 'Proprietor / Business Owner',
+      businessName: partialProfile.businessName ?? employerProfile?.businessName ?? '',
+      businessCategory: partialProfile.businessCategory ?? employerProfile?.businessCategory ?? 'Coaching Classes / Education Institute',
+      businessDescription: partialProfile.businessDescription ?? employerProfile?.businessDescription ?? '',
+      businessLogo: partialProfile.businessLogo ?? employerProfile?.businessLogo ?? '',
+      businessImages: partialProfile.businessImages ?? employerProfile?.businessImages ?? [],
+      boardGstinVerifiedByAI: partialProfile.boardGstinVerifiedByAI ?? employerProfile?.boardGstinVerifiedByAI ?? false,
+      aiBoardVerificationSummary: partialProfile.aiBoardVerificationSummary ?? employerProfile?.aiBoardVerificationSummary ?? '',
+      website: partialProfile.website ?? employerProfile?.website ?? '',
+      state: partialProfile.state ?? employerProfile?.state ?? '',
+      district: partialProfile.district ?? employerProfile?.district ?? '',
+      city: partialProfile.city ?? employerProfile?.city ?? '',
+      area: partialProfile.area ?? employerProfile?.area ?? '',
+      pincode: partialProfile.pincode ?? employerProfile?.pincode ?? '',
+      lat: partialProfile.lat ?? employerProfile?.lat,
+      lng: partialProfile.lng ?? employerProfile?.lng,
+      businessAddress: partialProfile.businessAddress ?? employerProfile?.businessAddress ?? '',
+      documentNumber: partialProfile.documentNumber ?? employerProfile?.documentNumber ?? '',
+      verificationStatus: employerProfile?.verificationStatus || 'Pending',
+      emailVerified: Boolean(currentUser.emailVerified),
+      phoneVerified: Boolean(partialProfile.ownerPhone || employerProfile?.ownerPhone || currentUser.phoneNumber),
+      updatedAt: serverTimestamp()
+    };
+
+    setEmployerProfile(merged);
+    if (merged.ownerName || merged.ownerPhone || merged.businessLogo) {
+      setUserProfile((prev) => {
+        if (!prev) return prev;
+        const next = {
+          ...prev,
+          name: merged.ownerName || prev.name,
+          phone: merged.ownerPhone || prev.phone,
+          profilePhoto: merged.businessLogo || prev.profilePhoto
+        };
+        try {
+          localStorage.setItem(`jobsetu_user_${uid}`, JSON.stringify(next));
+        } catch {}
+        return next;
+      });
+    }
+    try {
+      localStorage.setItem(`jobsetu_employer_${uid}`, JSON.stringify(merged));
+    } catch {}
+
+    await Promise.allSettled([
+      withTimeout(setDoc(doc(db, 'employerProfiles', uid), stripUndefined(merged), { merge: true }), 2500),
+      withTimeout(
+        setDoc(
+          doc(db, 'users', uid),
+          stripUndefined({
+            name: merged.ownerName || undefined,
+            phone: merged.ownerPhone || undefined,
+            profilePhoto: merged.businessLogo || undefined,
+            updatedAt: serverTimestamp()
+          }),
+          { merge: true }
+        ),
         2500
       )
     ]);
   };
 
-  const saveEmployerProfile = async (profileData: Omit<EmployerProfile, 'uid' | 'submittedAt' | 'updatedAt' | 'verificationStatus' | 'emailVerified' | 'phoneVerified'>) => {
+  const saveEmployerProfile = async (
+    profileData: Omit<EmployerProfile, 'uid' | 'submittedAt' | 'updatedAt' | 'verificationStatus' | 'emailVerified' | 'phoneVerified'>
+  ) => {
     if (!currentUser) throw new Error('You must be logged in to save an employer profile.');
     const empRef = doc(db, 'employerProfiles', currentUser.uid);
     const fullEmployerData: EmployerProfile = {
@@ -594,7 +968,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       uid: currentUser.uid,
       verificationStatus: 'Pending',
       emailVerified: !!currentUser.emailVerified,
-      phoneVerified: !!currentUser.phoneNumber,
+      phoneVerified: !!(profileData.ownerPhone || currentUser.phoneNumber),
       submittedAt: serverTimestamp(),
       updatedAt: serverTimestamp()
     };
@@ -605,6 +979,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         ? {
             ...prev,
             name: profileData.ownerName,
+            phone: profileData.ownerPhone || prev.phone,
             profilePhoto: profileData.businessLogo || prev.profilePhoto,
             onboardingCompleted: true
           }
@@ -622,15 +997,20 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     const userRef = doc(db, 'users', currentUser.uid);
     await Promise.allSettled([
-      withTimeout(setDoc(empRef, fullEmployerData), 2500),
+      withTimeout(setDoc(empRef, stripUndefined(fullEmployerData), { merge: true }), 3000),
       withTimeout(
-        updateDoc(userRef, {
-          name: profileData.ownerName,
-          profilePhoto: profileData.businessLogo || userProfile?.profilePhoto || '',
-          onboardingCompleted: true,
-          updatedAt: serverTimestamp()
-        }),
-        2500
+        setDoc(
+          userRef,
+          stripUndefined({
+            name: profileData.ownerName,
+            phone: profileData.ownerPhone || userProfile?.phone || '',
+            profilePhoto: profileData.businessLogo || userProfile?.profilePhoto || '',
+            onboardingCompleted: true,
+            updatedAt: serverTimestamp()
+          }),
+          { merge: true }
+        ),
+        3000
       )
     ]);
   };
@@ -662,7 +1042,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         enableAdditionalRole,
         setInitialRole,
         saveWorkerProfile,
+        saveDraftWorkerProfile,
         saveEmployerProfile,
+        saveDraftEmployerProfile,
         refreshProfile
       }}
     >

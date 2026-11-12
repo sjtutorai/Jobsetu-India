@@ -221,9 +221,7 @@ function MainApp() {
           const role = userProfile?.activeRole || intendedRole || 'worker';
           navigateTo(
             role === 'worker' ? '/jobfinder' : '/findemployee',
-            role === 'worker'
-              ? (workerProfile ? 'dashboard' : 'worker-onboarding')
-              : (employerProfile ? 'dashboard' : 'employer-onboarding'),
+            'dashboard',
             role
           );
         } else {
@@ -240,9 +238,7 @@ function MainApp() {
           const role = userProfile?.activeRole || intendedRole || 'worker';
           navigateTo(
             role === 'worker' ? '/jobfinder' : '/findemployee',
-            role === 'worker'
-              ? (workerProfile ? 'dashboard' : 'worker-onboarding')
-              : (employerProfile ? 'dashboard' : 'employer-onboarding'),
+            'dashboard',
             role
           );
         } else {
@@ -307,30 +303,33 @@ function MainApp() {
       }
 
       if (path === '/jobfinder' || path.startsWith('/jobfinder/')) {
-        setIntendedRole('worker');
         if (currentUser) {
-          if (workerProfile) {
-            switchActiveRole('worker').catch(() => {});
-            setView('dashboard');
-          } else {
-            setView('worker-onboarding');
+          // Respect user's saved role if they haven't explicitly enabled worker role
+          if (userProfile && userProfile.activeRole === 'employer' && !userProfile.enabledRoles?.includes('worker')) {
+            navigateTo('/findemployee', 'dashboard', 'employer');
+            return;
           }
+          setIntendedRole('worker');
+          switchActiveRole('worker').catch(() => {});
+          setView('dashboard');
         } else {
+          setIntendedRole('worker');
           setView('home');
           setAuthInitialRole('worker');
           setAuthMode('signin');
           setAuthModalOpen(true);
         }
       } else if (path === '/findemployee' || path.startsWith('/findemployee/')) {
-        setIntendedRole('employer');
         if (currentUser) {
-          if (employerProfile) {
-            switchActiveRole('employer').catch(() => {});
-            setView('dashboard');
-          } else {
-            setView('employer-onboarding');
+          if (userProfile && userProfile.activeRole === 'worker' && !userProfile.enabledRoles?.includes('employer')) {
+            navigateTo('/jobfinder', 'dashboard', 'worker');
+            return;
           }
+          setIntendedRole('employer');
+          switchActiveRole('employer').catch(() => {});
+          setView('dashboard');
         } else {
+          setIntendedRole('employer');
           setView('home');
           setAuthInitialRole('employer');
           setAuthMode('signin');
@@ -341,11 +340,11 @@ function MainApp() {
       } else if (path === '/' || path === '') {
         if (currentUser) {
           const role = userProfile?.activeRole || intendedRole || 'worker';
-          if (role === 'worker') {
-            setView(workerProfile ? 'dashboard' : 'worker-onboarding');
-          } else {
-            setView(employerProfile ? 'dashboard' : 'employer-onboarding');
-          }
+          navigateTo(
+            role === 'worker' ? '/jobfinder' : '/findemployee',
+            'dashboard',
+            role
+          );
         } else {
           setView('home');
         }
@@ -366,38 +365,38 @@ function MainApp() {
     } else {
       // User is logged in
       if (role === 'worker') {
-        if (workerProfile) {
-          switchActiveRole('worker').then(() => {
-            navigateTo('/jobfinder', 'dashboard', 'worker');
-            addToast('info', 'Switched to Job Seeker Hub');
-          });
-        } else {
-          navigateTo('/worker-onboarding', 'worker-onboarding', 'worker');
-        }
+        switchActiveRole('worker').then(() => {
+          navigateTo('/jobfinder', 'dashboard', 'worker');
+          addToast('info', 'Switched to Job Seeker Hub');
+        });
       } else {
-        if (employerProfile) {
-          switchActiveRole('employer').then(() => {
-            navigateTo('/findemployee', 'dashboard', 'employer');
-            addToast('info', 'Switched to Employer Hub');
-          });
-        } else {
-          navigateTo('/employer-onboarding', 'employer-onboarding', 'employer');
-        }
+        switchActiveRole('employer').then(() => {
+          navigateTo('/findemployee', 'dashboard', 'employer');
+          addToast('info', 'Switched to Employer Hub');
+        });
       }
     }
   };
 
-  const handleAuthSuccess = (selectedRole: UserRole) => {
-    addToast('success', `Welcome to JOBSETU!`, 'Signed In');
-    if (selectedRole === 'worker') {
-      if (!workerProfile) {
+  const handleAuthSuccess = (selectedRole: UserRole, isNewSignup?: boolean) => {
+    const resolvedRole = userProfile?.activeRole || selectedRole;
+    if (isNewSignup) {
+      addToast(
+        'success',
+        resolvedRole === 'employer'
+          ? 'Account created for Finding Labours / Staff! Complete your business profile or save & exit anytime.'
+          : 'Account created for Finding Jobs! Complete your 100% profile to unlock the best jobs in India.',
+        'Account Created'
+      );
+      if (resolvedRole === 'worker') {
         navigateTo('/worker-onboarding', 'worker-onboarding', 'worker');
       } else {
-        navigateTo('/jobfinder', 'dashboard', 'worker');
+        navigateTo('/employer-onboarding', 'employer-onboarding', 'employer');
       }
     } else {
-      if (!employerProfile) {
-        navigateTo('/employer-onboarding', 'employer-onboarding', 'employer');
+      addToast('success', 'Welcome back to JOBSETU!', 'Signed In');
+      if (resolvedRole === 'worker') {
+        navigateTo('/jobfinder', 'dashboard', 'worker');
       } else {
         navigateTo('/findemployee', 'dashboard', 'employer');
       }

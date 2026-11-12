@@ -5,6 +5,7 @@ import {
   Mail,
   Lock,
   User,
+  Phone,
   Eye,
   EyeOff,
   Briefcase,
@@ -28,7 +29,7 @@ interface AuthModalProps {
   initialRole?: UserRole;
   initialMode?: 'signin' | 'signup' | 'forgot';
   onModeUrlChange?: (mode: 'signin' | 'signup' | 'forgot') => void;
-  onAuthSuccess: (role: UserRole) => void;
+  onAuthSuccess: (role: UserRole, isNewSignup?: boolean) => void;
 }
 
 type AuthStep = 'auth' | 'role-selection' | 'forgot';
@@ -43,8 +44,6 @@ export const AuthModal: React.FC<AuthModalProps> = ({
   onAuthSuccess
 }) => {
   const {
-    workerProfile,
-    employerProfile,
     loginWithGoogle,
     loginWithEmail,
     registerWithEmail,
@@ -58,6 +57,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
   const [mode, setMode] = useState<AuthMode>(initialMode === 'signup' ? 'signup' : 'signin');
   const [selectedSignupRole, setSelectedSignupRole] = useState<UserRole | null>(initialRole || null);
   const [name, setName] = useState('');
+  const [phone, setPhone] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
@@ -83,6 +83,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
       setInfoMsg(null);
       setLoading(false);
       setName('');
+      setPhone('');
       setEmail('');
       setPassword('');
       setConfirmPassword('');
@@ -108,15 +109,24 @@ export const AuthModal: React.FC<AuthModalProps> = ({
         setErrorMsg(recaptcha.error || 'reCAPTCHA verification failed. Please try again.');
         return;
       }
-      const fallbackRole = selectedSignupRole || initialRole || intendedRole || 'worker';
-      const resolvedRole = await loginWithGoogle(fallbackRole);
 
-      // If creating a new account (signup mode) or brand-new user with no profiles yet, ask them to choose Find Job vs Find Employees
-      if (mode === 'signup' || (!workerProfile && !employerProfile && !selectedSignupRole)) {
+      const isSignupFlow = mode === 'signup';
+      const chosenRole = selectedSignupRole || initialRole;
+      const { role: resolvedRole, isNewUser } = await loginWithGoogle(chosenRole, isSignupFlow);
+
+      if (isSignupFlow) {
+        if (selectedSignupRole) {
+          await setInitialRole(selectedSignupRole);
+          onAuthSuccess(selectedSignupRole, true);
+          onClose();
+        } else {
+          setStep('role-selection');
+        }
+      } else if (isNewUser) {
         setStep('role-selection');
       } else {
-        // Existing account sign-in: go straight in without asking
-        onAuthSuccess(resolvedRole);
+        // Existing account sign-in: go straight to their saved role from Firestore without asking
+        onAuthSuccess(resolvedRole, false);
         onClose();
       }
     } catch (err: any) {
@@ -158,20 +168,20 @@ export const AuthModal: React.FC<AuthModalProps> = ({
 
       if (mode === 'signup') {
         const defaultRole = selectedSignupRole || initialRole || intendedRole || 'worker';
-        await registerWithEmail(name.trim(), email.trim(), password, defaultRole);
+        await registerWithEmail(name.trim(), email.trim(), password, defaultRole, phone.trim());
         if (selectedSignupRole) {
           setIntendedRole(selectedSignupRole);
           await setInitialRole(selectedSignupRole);
-          onAuthSuccess(selectedSignupRole);
+          onAuthSuccess(selectedSignupRole, true);
           onClose();
         } else {
-          // Always ask new account creators whether they want to Find Job or Find Employees if not already chosen
+          // Ask new account creators whether they want to Find Job or Find Employees if not already chosen
           setStep('role-selection');
         }
       } else {
-        // Sign In: do NOT ask whether they are looking for Jobs or Employees; redirect immediately
+        // Sign In: read saved role from Firestore and redirect immediately without asking
         const resolvedRole = await loginWithEmail(email.trim(), password);
-        onAuthSuccess(resolvedRole);
+        onAuthSuccess(resolvedRole, false);
         onClose();
       }
     } catch (err: any) {
@@ -198,7 +208,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
       setErrorMsg(null);
       setIntendedRole(selectedRole);
       await setInitialRole(selectedRole);
-      onAuthSuccess(selectedRole);
+      onAuthSuccess(selectedRole, true);
       onClose();
     } catch (err: any) {
       console.warn('Role selection notice:', err?.message || err);
@@ -334,7 +344,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                 </p>
               </div>
 
-              {/* Mode Switcher Tabs */}
+              {/* Mode Switch Tabs */}
               <div className="flex p-1 rounded-xl bg-gray-100 mb-5">
                 <button
                   type="button"
@@ -412,7 +422,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                         <Building2 className="w-4 h-4" />
                       </div>
                       <div>
-                        <p className="text-xs font-extrabold text-gray-900">Find Employees</p>
+                        <p className="text-xs font-extrabold text-gray-900">Find Employees / Labours</p>
                         <p className="text-[10px] text-gray-500 mt-0.5 leading-snug">
                           I want to hire staff for my business (Employer)
                         </p>
@@ -430,7 +440,14 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                 </div>
               )}
 
-              {/* Google 1-Click Button */}
+              {infoMsg && (
+                <div className="mb-4 p-3 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-700 text-xs flex items-start gap-2">
+                  <CheckCircle2 className="w-4 h-4 shrink-0 mt-0.5" />
+                  <span>{infoMsg}</span>
+                </div>
+              )}
+
+              {/* Google Sign-In Button */}
               <button
                 type="button"
                 onClick={handleGoogleLogin}
@@ -448,11 +465,11 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                   />
                   <path
                     fill="#FBBC05"
-                    d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z"
+                    d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"
                   />
                   <path
                     fill="#EA4335"
-                    d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"
+                    d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"
                   />
                 </svg>
                 <span>Continue with Google</span>
@@ -463,31 +480,46 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                   <div className="w-full border-t border-gray-200" />
                 </div>
                 <div className="relative flex justify-center text-xs uppercase">
-                  <span className="bg-white px-3 text-gray-400 font-semibold">Or with email & password</span>
+                  <span className="bg-white px-3 text-gray-400 font-bold">Or continue with email</span>
                 </div>
               </div>
 
               {/* Email Form */}
               <form onSubmit={handleEmailAuth} className="space-y-3">
                 {mode === 'signup' && (
-                  <div>
-                    <label className="block text-xs font-bold text-gray-700 mb-1">Full Name</label>
-                    <div className="relative">
-                      <User className="w-4 h-4 text-gray-400 absolute left-3.5 top-3" />
-                      <input
-                        type="text"
-                        required
-                        value={name}
-                        onChange={(e) => setName(e.target.value)}
-                        placeholder="e.g. Ramesh Kumar"
-                        className="w-full pl-10 pr-3 py-2.5 rounded-xl border border-gray-300 focus:border-[#2563EB] focus:ring-1 focus:ring-[#2563EB] outline-none text-sm"
-                      />
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-xs font-bold text-gray-700 mb-1">Full Name *</label>
+                      <div className="relative">
+                        <User className="w-4 h-4 text-gray-400 absolute left-3.5 top-3" />
+                        <input
+                          type="text"
+                          required
+                          value={name}
+                          onChange={(e) => setName(e.target.value)}
+                          placeholder="Your Full Name"
+                          className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-gray-300 focus:border-[#2563EB] focus:ring-2 focus:ring-blue-500/20 outline-none text-xs sm:text-sm"
+                        />
+                      </div>
+                    </div>
+                    <div>
+                      <label className="block text-xs font-bold text-gray-700 mb-1">Phone Number</label>
+                      <div className="relative">
+                        <Phone className="w-4 h-4 text-gray-400 absolute left-3.5 top-3" />
+                        <input
+                          type="tel"
+                          value={phone}
+                          onChange={(e) => setPhone(e.target.value)}
+                          placeholder="+91 98765 43210"
+                          className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-gray-300 focus:border-[#2563EB] focus:ring-2 focus:ring-blue-500/20 outline-none text-xs sm:text-sm"
+                        />
+                      </div>
                     </div>
                   </div>
                 )}
 
                 <div>
-                  <label className="block text-xs font-bold text-gray-700 mb-1">Email Address</label>
+                  <label className="block text-xs font-bold text-gray-700 mb-1">Email Address *</label>
                   <div className="relative">
                     <Mail className="w-4 h-4 text-gray-400 absolute left-3.5 top-3" />
                     <input
@@ -495,15 +527,15 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                       required
                       value={email}
                       onChange={(e) => setEmail(e.target.value)}
-                      placeholder="name@example.com"
-                      className="w-full pl-10 pr-3 py-2.5 rounded-xl border border-gray-300 focus:border-[#2563EB] focus:ring-1 focus:ring-[#2563EB] outline-none text-sm"
+                      placeholder="you@example.com"
+                      className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-gray-300 focus:border-[#2563EB] focus:ring-2 focus:ring-blue-500/20 outline-none text-sm"
                     />
                   </div>
                 </div>
 
                 <div>
                   <div className="flex items-center justify-between mb-1">
-                    <label className="block text-xs font-bold text-gray-700">Password</label>
+                    <label className="block text-xs font-bold text-gray-700">Password *</label>
                     {mode === 'signin' && (
                       <button
                         type="button"
@@ -526,7 +558,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                       value={password}
                       onChange={(e) => setPassword(e.target.value)}
                       placeholder="••••••••"
-                      className="w-full pl-10 pr-10 py-2.5 rounded-xl border border-gray-300 focus:border-[#2563EB] focus:ring-1 focus:ring-[#2563EB] outline-none text-sm"
+                      className="w-full pl-10 pr-10 py-2.5 rounded-xl border border-gray-300 focus:border-[#2563EB] focus:ring-2 focus:ring-blue-500/20 outline-none text-sm"
                     />
                     <button
                       type="button"
@@ -540,7 +572,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
 
                 {mode === 'signup' && (
                   <div>
-                    <label className="block text-xs font-bold text-gray-700 mb-1">Confirm Password</label>
+                    <label className="block text-xs font-bold text-gray-700 mb-1">Confirm Password *</label>
                     <div className="relative">
                       <Lock className="w-4 h-4 text-gray-400 absolute left-3.5 top-3" />
                       <input
@@ -549,7 +581,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                         value={confirmPassword}
                         onChange={(e) => setConfirmPassword(e.target.value)}
                         placeholder="••••••••"
-                        className="w-full pl-10 pr-3 py-2.5 rounded-xl border border-gray-300 focus:border-[#2563EB] focus:ring-1 focus:ring-[#2563EB] outline-none text-sm"
+                        className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-gray-300 focus:border-[#2563EB] focus:ring-2 focus:ring-blue-500/20 outline-none text-sm"
                       />
                     </div>
                   </div>
@@ -565,7 +597,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                   ) : mode === 'signup' ? (
                     <span>
                       {selectedSignupRole === 'employer'
-                        ? 'Create Employer Account (Find Employees)'
+                        ? 'Create Employer Account (Find Labours / Staff)'
                         : selectedSignupRole === 'worker'
                         ? 'Create Job Seeker Account (Find Job)'
                         : 'Create Account & Choose Role'}
@@ -594,7 +626,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
           {step === 'role-selection' && (
             <div className="animate-in fade-in duration-300 my-auto">
               <div className="text-center mb-8">
-                <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-blue-50 text-[#2563EB] border border-blue-200 text-xs font-bold mb-3">
+                <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-blue-50 border border-blue-200 text-xs font-bold text-[#2563EB] mb-3">
                   <Sparkles className="w-3.5 h-3.5" />
                   <span>Account Created Successfully</span>
                 </div>
@@ -602,7 +634,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                   Choose Your Primary Role
                 </h2>
                 <p className="text-xs sm:text-sm text-gray-500 mt-1.5 max-w-md mx-auto">
-                  Do you want to Find a Job or Find Employees? You can always switch or activate both roles later.
+                  Do you want to Find a Job or Find Employees / Labours? Your choice is saved across all your devices.
                 </p>
               </div>
 
@@ -620,7 +652,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                   onClick={() => handleSelectRole('worker')}
                   className="group relative p-5 sm:p-6 rounded-2xl border-2 border-gray-200 hover:border-[#2563EB] hover:bg-blue-50/40 transition-all duration-200 cursor-pointer shadow-xs hover:shadow-md flex items-start gap-4"
                 >
-                  <div className="w-12 h-12 rounded-2xl bg-blue-100 text-[#2563EB] flex items-center justify-center shrink-0 group-hover:bg-[#2563EB] group-hover:text-white transition-colors shadow-xs">
+                  <div className="w-12 h-12 rounded-2xl bg-blue-100 text-[#2563EB] group-hover:bg-[#2563EB] group-hover:text-white transition-colors flex items-center justify-center shrink-0">
                     <Briefcase className="w-6 h-6" />
                   </div>
                   <div className="flex-1">
@@ -646,18 +678,18 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                   </div>
                 </div>
 
-                {/* CHOICE 2: Find Employees */}
+                {/* CHOICE 2: Find Employees / Labours */}
                 <div
                   onClick={() => handleSelectRole('employer')}
                   className="group relative p-5 sm:p-6 rounded-2xl border-2 border-gray-200 hover:border-[#F59E0B] hover:bg-amber-50/40 transition-all duration-200 cursor-pointer shadow-xs hover:shadow-md flex items-start gap-4"
                 >
-                  <div className="w-12 h-12 rounded-2xl bg-amber-100 text-[#F59E0B] flex items-center justify-center shrink-0 group-hover:bg-[#F59E0B] group-hover:text-white transition-colors shadow-xs">
+                  <div className="w-12 h-12 rounded-2xl bg-amber-100 text-[#F59E0B] group-hover:bg-[#F59E0B] group-hover:text-white transition-colors flex items-center justify-center shrink-0">
                     <Building2 className="w-6 h-6" />
                   </div>
                   <div className="flex-1">
                     <div className="flex items-center justify-between">
                       <h3 className="text-base font-extrabold text-gray-900 group-hover:text-amber-700 transition-colors">
-                        Find Employees (I want to hire staff)
+                        Find Employees / Labours (I want to hire staff)
                       </h3>
                       <span className="text-[11px] font-bold text-amber-800 bg-amber-50 border border-amber-200 px-2 py-0.5 rounded-full">
                         Employer
@@ -673,15 +705,15 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                     </div>
                   </div>
                   <div className="self-center hidden sm:block">
-                    <ArrowRight className="w-5 h-5 text-gray-400 group-hover:text-[#F59E0B] group-hover:translate-x-1 transition-all" />
+                    <ArrowRight className="w-5 h-5 text-gray-400 group-hover:text-amber-600 group-hover:translate-x-1 transition-all" />
                   </div>
                 </div>
               </div>
 
               {loading && (
-                <div className="text-center mt-4 text-xs font-semibold text-gray-500 flex items-center justify-center gap-2">
-                  <RefreshCw className="w-4 h-4 animate-spin text-[#2563EB]" />
-                  <span>Setting up your dashboard...</span>
+                <div className="mt-5 flex items-center justify-center gap-2 text-xs font-bold text-[#2563EB]">
+                  <RefreshCw className="w-4 h-4 animate-spin" />
+                  <span>Setting up your workspace...</span>
                 </div>
               )}
             </div>
@@ -691,9 +723,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
           {step === 'forgot' && (
             <div className="animate-in fade-in duration-200 my-auto">
               <div className="mb-6">
-                <h2 className="text-2xl font-black text-gray-900 tracking-tight">
-                  Reset Password
-                </h2>
+                <h2 className="text-2xl font-black text-gray-900">Reset Password</h2>
                 <p className="text-xs text-gray-500 mt-1">
                   Enter your registered email and we will send you a password reset link.
                 </p>
@@ -707,7 +737,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
               )}
 
               {infoMsg && (
-                <div className="mb-4 p-3 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs flex items-start gap-2">
+                <div className="mb-4 p-3 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-700 text-xs flex items-start gap-2">
                   <CheckCircle2 className="w-4 h-4 shrink-0 mt-0.5" />
                   <span>{infoMsg}</span>
                 </div>
@@ -723,8 +753,8 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                       required
                       value={email}
                       onChange={(e) => setEmail(e.target.value)}
-                      placeholder="name@example.com"
-                      className="w-full pl-10 pr-3 py-2.5 rounded-xl border border-gray-300 focus:border-[#2563EB] outline-none text-sm"
+                      placeholder="you@example.com"
+                      className="w-full pl-10 pr-4 py-3 rounded-xl border border-gray-300 focus:border-[#2563EB] outline-none text-sm"
                     />
                   </div>
                 </div>
@@ -732,9 +762,9 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                 <button
                   type="submit"
                   disabled={loading}
-                  className="w-full py-3.5 px-4 rounded-xl bg-[#2563EB] hover:bg-blue-700 text-white font-bold text-sm shadow-md transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
+                  className="w-full py-3.5 px-4 rounded-xl bg-[#2563EB] hover:bg-blue-700 text-white font-bold text-sm shadow-md cursor-pointer disabled:opacity-50"
                 >
-                  {loading ? <RefreshCw className="w-4 h-4 animate-spin" /> : <span>Send Reset Link</span>}
+                  {loading ? 'Sending...' : 'Send Reset Link'}
                 </button>
 
                 <button

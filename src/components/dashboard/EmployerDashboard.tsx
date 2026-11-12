@@ -115,7 +115,7 @@ export const EmployerDashboard: React.FC<EmployerDashboardProps> = ({
   onSwitchRole,
   onOpenAIAssistant
 }) => {
-  const { userProfile, employerProfile, logout } = useAuth();
+  const { currentUser, userProfile, employerProfile, logout } = useAuth();
   const {
     myJobs,
     employerApplications,
@@ -162,19 +162,49 @@ export const EmployerDashboard: React.FC<EmployerDashboardProps> = ({
   ).length;
   const filledPositions = myJobs.filter((j) => j.status === 'closed').length;
 
-  // Business Profile Completion Calculation
+  // Basic details resolved from employerProfile + userProfile + currentUser
+  const displayOwnerName =
+    employerProfile?.ownerName || userProfile?.name || currentUser?.displayName || 'Business Owner';
+  const displayEmail =
+    employerProfile?.ownerEmail || userProfile?.email || currentUser?.email || 'Not added yet';
+  const displayPhone =
+    (employerProfile?.ownerPhone && employerProfile.ownerPhone.trim() !== '+91' ? employerProfile.ownerPhone : '') ||
+    (userProfile?.phone && userProfile.phone.trim() !== '+91' ? userProfile.phone : '') ||
+    currentUser?.phoneNumber ||
+    'Not added yet';
+  const displayBusinessName = employerProfile?.businessName || '';
+
+  // Business Profile Completion Calculation (100% requires full onboarding details)
   const calculateEmployerCompletion = (): number => {
-    if (!employerProfile) return 25;
-    let score = 30; // Basic registration
-    if (employerProfile.businessName) score += 15;
-    if (employerProfile.businessLogo) score += 15;
-    if (employerProfile.ownerName && (employerProfile.ownerPhone || employerProfile.ownerEmail)) score += 15;
-    if (employerProfile.city && employerProfile.state) score += 15;
-    if (employerProfile.verificationStatus === 'Verified') score += 10;
+    let score = 0;
+    if (displayOwnerName && displayOwnerName !== 'Business Owner') score += 10;
+    if (displayEmail && displayEmail !== 'Not added yet') score += 10;
+    if (displayPhone && displayPhone !== 'Not added yet' && displayPhone.replace(/\D/g, '').length >= 10) score += 10;
+    if (displayBusinessName.trim()) score += 20;
+    if ((employerProfile?.businessImages?.length || 0) > 0 || employerProfile?.businessLogo) score += 20;
+    if (employerProfile?.state && employerProfile?.pincode) score += 15;
+    if (employerProfile?.documentNumber && (employerProfile?.boardGstinVerifiedByAI || userProfile?.onboardingCompleted)) score += 15;
     return Math.min(score, 100);
   };
 
   const employerCompletionPercent = calculateEmployerCompletion();
+
+  const missingEmployerFields: string[] = [];
+  if (!displayPhone || displayPhone === 'Not added yet' || displayPhone.replace(/\D/g, '').length < 10) {
+    missingEmployerFields.push('Phone Number');
+  }
+  if (!displayBusinessName.trim()) {
+    missingEmployerFields.push('Business / Coaching Classes Name');
+  }
+  if ((employerProfile?.businessImages?.length || 0) === 0) {
+    missingEmployerFields.push('Sign Board Photo with GSTIN');
+  }
+  if (!employerProfile?.state || !employerProfile?.pincode) {
+    missingEmployerFields.push('Workplace Location & PIN Code');
+  }
+  if (!employerProfile?.documentNumber) {
+    missingEmployerFields.push('15-Digit GSTIN Verification');
+  }
 
   // Recent applications preview
   const recentApplicants = [...employerApplications].slice(0, 4);
@@ -307,36 +337,44 @@ export const EmployerDashboard: React.FC<EmployerDashboardProps> = ({
                   {employerProfile?.businessLogo ? (
                     <img
                       src={employerProfile.businessLogo}
-                      alt={employerProfile.businessName}
+                      alt={displayBusinessName || displayOwnerName}
                       className="w-20 h-20 rounded-2xl object-cover border-3 border-white/60 shadow-md bg-white"
                     />
                   ) : (
                     <div className="w-20 h-20 rounded-2xl bg-white/20 backdrop-blur-md text-white flex items-center justify-center font-black text-2xl border border-white/30">
-                      {(employerProfile?.businessName || 'E').charAt(0).toUpperCase()}
+                      {(displayBusinessName || displayOwnerName || 'E').charAt(0).toUpperCase()}
                     </div>
                   )}
 
                   <div>
                     <div className="flex items-center gap-2">
                       <span className="text-[11px] font-bold uppercase tracking-wider bg-white/20 text-white px-2.5 py-0.5 rounded-full">
-                        Enterprise Portal
+                        Finding Labours / Staff &bull; Employer Portal
                       </span>
                       <span className="text-[11px] font-semibold text-emerald-100 flex items-center gap-1 bg-black/15 px-2 py-0.5 rounded-full">
                         <ShieldCheck className="w-3.5 h-3.5 text-emerald-300" />
-                        {employerProfile?.verificationStatus === 'Verified' ? 'Verified Business' : 'Audit Active'}
+                        {employerCompletionPercent === 100 ? '100% Profile Complete' : `${employerCompletionPercent}% Profile Saved`}
                       </span>
                     </div>
 
                     <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight mt-1 text-white">
-                      {employerProfile?.businessName || userProfile?.name}
+                      {displayBusinessName || `Welcome, ${displayOwnerName}!`}
                     </h1>
 
-                    <p className="text-amber-100 text-xs sm:text-sm mt-0.5 flex items-center gap-2">
-                      <MapPin className="w-3.5 h-3.5 text-amber-200 shrink-0" />
-                      <span>
+                    <p className="text-amber-100 text-xs sm:text-sm mt-0.5 flex flex-wrap items-center gap-2.5">
+                      <span className="flex items-center gap-1">
+                        <MapPin className="w-3.5 h-3.5 text-amber-200 shrink-0" />
                         {employerProfile?.city ? `${employerProfile.city}, ` : ''}{employerProfile?.state || 'India'}
                         {employerProfile?.pincode ? ` (${employerProfile.pincode})` : ''}
                       </span>
+                      <span>&bull;</span>
+                      <span>{displayEmail}</span>
+                      {displayPhone !== 'Not added yet' && (
+                        <>
+                          <span>&bull;</span>
+                          <span>{displayPhone}</span>
+                        </>
+                      )}
                     </p>
                   </div>
                 </div>
@@ -365,14 +403,121 @@ export const EmployerDashboard: React.FC<EmployerDashboardProps> = ({
 
                   <button
                     type="button"
-                    onClick={() => setActiveTab('find_workers')}
+                    onClick={onEditProfile}
                     className="py-2.5 px-4 rounded-2xl bg-black/20 hover:bg-black/30 text-white font-bold text-xs backdrop-blur-xs transition-all flex items-center gap-1.5 cursor-pointer"
                   >
-                    <Users className="w-3.5 h-3.5" />
-                    <span>Search Workers</span>
+                    <Edit3 className="w-3.5 h-3.5" />
+                    <span>{employerCompletionPercent < 100 ? 'Complete 100% Profile' : 'Edit Profile'}</span>
                   </button>
                 </div>
               </div>
+
+              {/* Profile Completion Bar inside banner */}
+              <div className="mt-8 pt-6 border-t border-white/20">
+                <div className="flex items-center justify-between text-xs font-bold text-white mb-2">
+                  <span className="flex items-center gap-1.5">
+                    <CheckCircle2 className="w-4 h-4 text-emerald-200" />
+                    Complete your 100% Business Profile to hire the Best Labours & Staff in India
+                  </span>
+                  <span>{employerCompletionPercent}% Completed</span>
+                </div>
+                <div className="w-full bg-white/20 h-2.5 rounded-full overflow-hidden">
+                  <div
+                    className="bg-emerald-300 h-full rounded-full transition-all duration-500"
+                    style={{ width: `${employerCompletionPercent}%` }}
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* BASIC DETAILS & 100% BUSINESS PROFILE COMPLETION CARD */}
+            <div className="bg-white rounded-3xl p-6 sm:p-7 shadow-xs border-2 border-amber-200/80 space-y-5">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-gray-100 pb-4">
+                <div>
+                  <div className="flex items-center gap-2">
+                    <span className="px-2.5 py-0.5 rounded-full bg-amber-50 text-amber-800 text-[10px] font-black uppercase tracking-wider">
+                      Your Saved Account & Basic Details
+                    </span>
+                    <span className="px-2.5 py-0.5 rounded-full bg-emerald-50 text-emerald-700 text-[10px] font-black uppercase">
+                      Role: Finding Labours / Employees (Employer)
+                    </span>
+                  </div>
+                  <h2 className="text-lg font-extrabold text-gray-900 mt-1">
+                    Basic Account & Business Information &bull; {employerCompletionPercent}% Completed
+                  </h2>
+                </div>
+                <button
+                  type="button"
+                  onClick={onEditProfile}
+                  className="px-5 py-2.5 rounded-xl bg-[#F59E0B] hover:bg-amber-600 text-white font-bold text-xs shadow-sm transition-all flex items-center gap-2 cursor-pointer self-start sm:self-auto"
+                >
+                  <Edit3 className="w-3.5 h-3.5" />
+                  <span>
+                    {employerCompletionPercent < 100
+                      ? 'Complete Your 100% Business Profile'
+                      : 'Update Business Details'}
+                  </span>
+                </button>
+              </div>
+
+              {/* Basic Details Grid (Owner Name, Email, Phone Number, Business Name) */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200/80">
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-gray-400 block">
+                    Owner / Representative Name
+                  </span>
+                  <span className="text-sm font-extrabold text-gray-900 mt-1 block truncate">
+                    {displayOwnerName}
+                  </span>
+                </div>
+                <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200/80">
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-gray-400 block">
+                    Email Address
+                  </span>
+                  <span className="text-sm font-extrabold text-gray-900 mt-1 block truncate">
+                    {displayEmail}
+                  </span>
+                </div>
+                <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200/80">
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-gray-400 block">
+                    Phone Number
+                  </span>
+                  <span className="text-sm font-extrabold text-gray-900 mt-1 block truncate">
+                    {displayPhone}
+                  </span>
+                </div>
+                <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200/80">
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-gray-400 block">
+                    Business / Coaching Name
+                  </span>
+                  <span className="text-sm font-extrabold text-gray-900 mt-1 block truncate">
+                    {displayBusinessName || 'Not added yet'}
+                  </span>
+                </div>
+              </div>
+
+              {/* 100% Profile Completion Callout */}
+              {employerCompletionPercent < 100 && (
+                <div className="p-4 sm:p-5 rounded-2xl bg-gradient-to-r from-amber-50 via-orange-50 to-amber-50 border border-amber-200 flex flex-col md:flex-row md:items-center justify-between gap-4">
+                  <div className="space-y-1">
+                    <p className="text-sm font-black text-amber-950 flex items-center gap-2">
+                      <Sparkles className="w-4 h-4 text-amber-600 shrink-0" />
+                      <span>Complete your 100% Profile to hire the Best Labours & Staff in India!</span>
+                    </p>
+                    <p className="text-xs text-amber-800 leading-relaxed">
+                      Your account role (Finding Labours / Employees) and basic details are saved across all devices. Complete your remaining steps ({missingEmployerFields.join(', ')}) to unlock full verified hiring across India.
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={onEditProfile}
+                    className="px-5 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-600 text-slate-950 font-black text-xs shadow-xs transition-all shrink-0 cursor-pointer flex items-center gap-1.5 self-start md:self-center"
+                  >
+                    <span>Complete 100% Profile</span>
+                    <ArrowRight className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+              )}
             </div>
 
             {/* Spotlight Banner: People Who Want to Join You */}
@@ -663,21 +808,28 @@ export const EmployerDashboard: React.FC<EmployerDashboardProps> = ({
                 {employerProfile?.businessLogo ? (
                   <img
                     src={employerProfile.businessLogo}
-                    alt={employerProfile.businessName}
+                    alt={displayBusinessName || displayOwnerName}
                     className="w-20 h-20 rounded-2xl object-cover border-2 border-amber-400 shadow-md bg-white"
                   />
                 ) : (
                   <div className="w-20 h-20 rounded-2xl bg-amber-100 text-amber-700 font-bold text-2xl flex items-center justify-center">
-                    {(employerProfile?.businessName || 'E').charAt(0)}
+                    {(displayBusinessName || displayOwnerName || 'E').charAt(0).toUpperCase()}
                   </div>
                 )}
                 <div>
-                  <h2 className="text-2xl font-bold text-gray-900">{employerProfile?.businessName}</h2>
-                  <p className="text-xs text-gray-500 mt-0.5 flex items-center gap-1.5">
-                    <MapPin className="w-3.5 h-3.5 text-amber-500" />
-                    <span>
-                      {employerProfile?.city ? `${employerProfile.city}, ` : ''}{employerProfile?.state} ({employerProfile?.pincode})
+                  <h2 className="text-2xl font-bold text-gray-900">
+                    {displayBusinessName || displayOwnerName}
+                  </h2>
+                  <p className="text-xs text-gray-500 mt-0.5 flex flex-wrap items-center gap-2">
+                    <span className="flex items-center gap-1">
+                      <MapPin className="w-3.5 h-3.5 text-amber-500" />
+                      {employerProfile?.city ? `${employerProfile.city}, ` : ''}{employerProfile?.state || 'India'}{' '}
+                      {employerProfile?.pincode ? `(${employerProfile.pincode})` : ''}
                     </span>
+                    <span>&bull;</span>
+                    <span>{displayEmail}</span>
+                    <span>&bull;</span>
+                    <span>{displayPhone}</span>
                   </p>
                 </div>
               </div>
@@ -688,27 +840,45 @@ export const EmployerDashboard: React.FC<EmployerDashboardProps> = ({
                 className="px-5 py-2.5 rounded-2xl bg-amber-500 hover:bg-amber-600 text-white font-bold text-xs shadow-md transition-all flex items-center gap-2 cursor-pointer self-start sm:self-auto"
               >
                 <Edit3 className="w-4 h-4" />
-                <span>Edit Enterprise Profile</span>
+                <span>{employerCompletionPercent < 100 ? 'Complete 100% Profile' : 'Edit Enterprise Profile'}</span>
               </button>
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
               <div className="p-4 rounded-2xl bg-slate-50 border border-slate-100">
-                <span className="text-[10px] uppercase font-bold text-gray-400 block">Category</span>
-                <span className="text-sm font-bold text-gray-900 mt-1 block">
-                  {employerProfile?.businessCategory || 'Retail'}
-                </span>
-              </div>
-              <div className="p-4 rounded-2xl bg-slate-50 border border-slate-100">
-                <span className="text-[10px] uppercase font-bold text-gray-400 block">Registration Status</span>
-                <span className="text-sm font-bold text-emerald-700 mt-1 block capitalize flex items-center gap-1">
-                  <ShieldCheck className="w-4 h-4" /> Verified Enterprise
-                </span>
-              </div>
-              <div className="p-4 rounded-2xl bg-slate-50 border border-slate-100">
                 <span className="text-[10px] uppercase font-bold text-gray-400 block">Contact Person</span>
                 <span className="text-sm font-bold text-gray-900 mt-1 block">
-                  {employerProfile?.ownerName}
+                  {displayOwnerName}
+                </span>
+              </div>
+              <div className="p-4 rounded-2xl bg-slate-50 border border-slate-100">
+                <span className="text-[10px] uppercase font-bold text-gray-400 block">Email Address</span>
+                <span className="text-sm font-bold text-gray-900 mt-1 block truncate">
+                  {displayEmail}
+                </span>
+              </div>
+              <div className="p-4 rounded-2xl bg-slate-50 border border-slate-100">
+                <span className="text-[10px] uppercase font-bold text-gray-400 block">Phone Number</span>
+                <span className="text-sm font-bold text-gray-900 mt-1 block">
+                  {displayPhone}
+                </span>
+              </div>
+              <div className="p-4 rounded-2xl bg-slate-50 border border-slate-100">
+                <span className="text-[10px] uppercase font-bold text-gray-400 block">Business Name</span>
+                <span className="text-sm font-bold text-gray-900 mt-1 block">
+                  {displayBusinessName || 'Not added yet'}
+                </span>
+              </div>
+              <div className="p-4 rounded-2xl bg-slate-50 border border-slate-100">
+                <span className="text-[10px] uppercase font-bold text-gray-400 block">Category</span>
+                <span className="text-sm font-bold text-gray-900 mt-1 block">
+                  {employerProfile?.businessCategory || 'Coaching Classes / Education Institute'}
+                </span>
+              </div>
+              <div className="p-4 rounded-2xl bg-slate-50 border border-slate-100">
+                <span className="text-[10px] uppercase font-bold text-gray-400 block">Profile Completion</span>
+                <span className="text-sm font-bold text-amber-700 mt-1 block">
+                  {employerCompletionPercent}% Completed
                 </span>
               </div>
             </div>
