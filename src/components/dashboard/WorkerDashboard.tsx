@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { useJobs } from '../../context/JobContext';
 import { useAttendance } from '../../context/AttendanceContext';
@@ -54,7 +54,7 @@ interface WorkerDashboardProps {
   onOpenAIAssistant?: () => void;
 }
 
-type WorkerTab =
+export type WorkerTab =
   | 'overview'
   | 'jobs_near_me'
   | 'find_jobs'
@@ -68,6 +68,41 @@ type WorkerTab =
   | 'profile'
   | 'notifications'
   | 'settings';
+
+const WORKER_TAB_TO_SLUG: Record<WorkerTab, string> = {
+  overview: '/jobfinder',
+  jobs_near_me: '/jobfinder/50km-radius',
+  find_jobs: '/jobfinder/find-jobs',
+  trust_centre: '/jobfinder/trust-centre',
+  attendance: '/jobfinder/attendance',
+  hiring_requests: '/jobfinder/hiring-requests',
+  top_companies: '/jobfinder/top-companies',
+  my_applications: '/jobfinder/my-applications',
+  saved_jobs: '/jobfinder/saved-jobs',
+  messages: '/jobfinder/messages',
+  profile: '/jobfinder/profile',
+  notifications: '/jobfinder/notifications',
+  settings: '/jobfinder/settings'
+};
+
+const parseWorkerTabFromPath = (pathname: string): WorkerTab => {
+  const clean = pathname.replace(/\/+$/, '');
+  if (clean === '/50km-radius' || clean === '/jobfinder/50km-radius' || clean === '/jobfinder/jobs-near-me') {
+    return 'jobs_near_me';
+  }
+  if (clean === '/jobfinder/find-jobs') return 'find_jobs';
+  if (clean === '/jobfinder/trust-centre') return 'trust_centre';
+  if (clean === '/jobfinder/attendance') return 'attendance';
+  if (clean === '/jobfinder/hiring-requests') return 'hiring_requests';
+  if (clean === '/jobfinder/top-companies') return 'top_companies';
+  if (clean === '/jobfinder/my-applications') return 'my_applications';
+  if (clean === '/jobfinder/saved-jobs') return 'saved_jobs';
+  if (clean === '/jobfinder/messages') return 'messages';
+  if (clean === '/jobfinder/profile') return 'profile';
+  if (clean === '/jobfinder/notifications') return 'notifications';
+  if (clean === '/jobfinder/settings') return 'settings';
+  return 'overview';
+};
 
 export const WorkerDashboard: React.FC<WorkerDashboardProps> = ({
   onEditProfile,
@@ -92,11 +127,29 @@ export const WorkerDashboard: React.FC<WorkerDashboardProps> = ({
     uploadWorkerResume
   } = useJobs();
 
-  const [activeTab, setActiveTab] = useState<WorkerTab>('overview');
+  const [activeTab, setActiveTabState] = useState<WorkerTab>(() =>
+    parseWorkerTabFromPath(window.location.pathname)
+  );
   const [selectedJob, setSelectedJob] = useState<Job | null>(null);
   const [resumeModalOpen, setResumeModalOpen] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isCollapsedDesktop, setIsCollapsedDesktop] = useState(false);
+
+  const setActiveTab = (tab: WorkerTab) => {
+    setActiveTabState(tab);
+    const targetPath = WORKER_TAB_TO_SLUG[tab] || '/jobfinder';
+    if (window.location.pathname !== targetPath) {
+      window.history.pushState(null, '', targetPath);
+    }
+  };
+
+  useEffect(() => {
+    const syncFromUrl = () => {
+      setActiveTabState(parseWorkerTabFromPath(window.location.pathname));
+    };
+    window.addEventListener('popstate', syncFromUrl);
+    return () => window.removeEventListener('popstate', syncFromUrl);
+  }, []);
 
   const enabledRoles = userProfile?.enabledRoles || ['worker'];
   const hasEmployerRole = enabledRoles.includes('employer');
@@ -245,10 +298,10 @@ export const WorkerDashboard: React.FC<WorkerDashboardProps> = ({
             <button
               type="button"
               onClick={() => setActiveTab('jobs_near_me')}
-              className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-blue-50 text-[#2563EB] hover:bg-blue-100 text-xs font-bold transition-colors cursor-pointer"
+              className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-[#2563EB] text-white hover:bg-blue-700 text-xs font-extrabold shadow-xs transition-colors cursor-pointer"
             >
               <Navigation className="w-3.5 h-3.5" />
-              <span>50 km Radar</span>
+              <span>50 KM Radius</span>
             </button>
 
             <button
@@ -312,6 +365,14 @@ export const WorkerDashboard: React.FC<WorkerDashboardProps> = ({
                 </div>
 
                 <div className="flex flex-wrap items-center gap-3">
+                  <button
+                    type="button"
+                    onClick={() => setActiveTab('jobs_near_me')}
+                    className="py-2.5 px-5 rounded-2xl bg-amber-400 text-slate-950 hover:bg-amber-300 font-black text-xs shadow-md transition-all flex items-center gap-2 cursor-pointer"
+                  >
+                    <Navigation className="w-4 h-4" />
+                    <span>50 KM Radius Radar</span>
+                  </button>
                   <button
                     type="button"
                     onClick={() => setActiveTab('find_jobs')}
@@ -399,9 +460,15 @@ export const WorkerDashboard: React.FC<WorkerDashboardProps> = ({
                 <span className="text-xs font-semibold text-gray-500 mt-1 block">Live Available Jobs</span>
               </div>
 
-              <div className="bg-white rounded-3xl p-5 shadow-xs border border-gray-200">
+              <div
+                onClick={() => setActiveTab('jobs_near_me')}
+                className="bg-blue-50/70 hover:bg-blue-100/80 rounded-3xl p-5 shadow-xs border-2 border-blue-200 cursor-pointer transition-all"
+              >
                 <span className="text-2xl font-black text-[#2563EB] block">{jobsNearYou.length}</span>
-                <span className="text-xs font-semibold text-gray-500 mt-1 block">In 50 km Radius</span>
+                <span className="text-xs font-extrabold text-blue-900 mt-1 flex items-center gap-1">
+                  <span>In 50 KM Radius</span>
+                  <ArrowRight className="w-3 h-3" />
+                </span>
               </div>
 
               <div className="bg-white rounded-3xl p-5 shadow-xs border border-gray-200">
@@ -421,27 +488,38 @@ export const WorkerDashboard: React.FC<WorkerDashboardProps> = ({
                 <div>
                   <h2 className="text-lg font-bold text-gray-900 flex items-center gap-2">
                     <Navigation className="w-5 h-5 text-[#2563EB]" />
-                    <span>Jobs Near You (Under 50 km Radius)</span>
+                    <span>Jobs Near You (50 KM Radius Radar)</span>
                   </h2>
                   <p className="text-xs text-gray-500 mt-0.5">
-                    Vacancies within easy commuting distance from {workerProfile?.city || workerProfile?.state || 'your location'}.
+                    Vacancies within a 50 KM commuting distance from {workerProfile?.city || workerProfile?.state || 'your location'}.
                   </p>
                 </div>
                 <button
                   type="button"
-                  onClick={() => setActiveTab('find_jobs')}
-                  className="text-xs font-bold text-[#2563EB] hover:underline flex items-center gap-1 cursor-pointer"
+                  onClick={() => setActiveTab('jobs_near_me')}
+                  className="px-3.5 py-2 rounded-xl bg-blue-50 hover:bg-blue-100 text-xs font-extrabold text-[#2563EB] flex items-center gap-1.5 cursor-pointer transition-colors"
                 >
-                  <span>View All Near Me</span>
+                  <Navigation className="w-3.5 h-3.5" />
+                  <span>Open 50 KM Radius Map</span>
                   <ArrowRight className="w-3.5 h-3.5" />
                 </button>
               </div>
 
               {jobsNearYou.length === 0 ? (
-                <div className="bg-white rounded-3xl p-8 text-center border border-gray-200">
-                  <MapPin className="w-10 h-10 text-gray-300 mx-auto mb-2" />
-                  <p className="text-xs text-gray-600 font-semibold">No job vacancies currently active within 50 km</p>
-                  <p className="text-[11px] text-gray-400 mt-0.5">Explore open positions across your state or nationwide.</p>
+                <div className="bg-white rounded-3xl p-8 text-center border border-gray-200 space-y-3">
+                  <MapPin className="w-10 h-10 text-blue-500 mx-auto" />
+                  <div>
+                    <p className="text-xs text-gray-800 font-bold">Open the Interactive 50 KM Radius Map to Pin Your Exact Area</p>
+                    <p className="text-[11px] text-gray-500 mt-0.5">Use GPS or tap anywhere on the Indian Map to see jobs within 5 KM to 50 KM of your location.</p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setActiveTab('jobs_near_me')}
+                    className="px-5 py-2.5 rounded-xl bg-[#2563EB] hover:bg-blue-700 text-white text-xs font-bold shadow-xs inline-flex items-center gap-2 cursor-pointer"
+                  >
+                    <Navigation className="w-3.5 h-3.5" />
+                    <span>Launch 50 KM Radius Radar</span>
+                  </button>
                 </div>
               ) : (
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-5">

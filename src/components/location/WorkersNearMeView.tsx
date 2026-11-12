@@ -68,8 +68,8 @@ export const WorkersNearMeView: React.FC<WorkersNearMeViewProps> = ({
   const [candidates, setCandidates] = useState<WorkerProfile[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
 
-  // Radius: 5, 10, 20, 30, 50 or custom
-  const [radiusKm, setRadiusKm] = useState<number>(20);
+  // Radius: default 50 KM (supports 5, 10, 20, 30, 50 or custom)
+  const [radiusKm, setRadiusKm] = useState<number>(50);
   const [isCustomRadius, setIsCustomRadius] = useState<boolean>(false);
 
   // View mode

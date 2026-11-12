@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { AuthProvider, useAuth } from './context/AuthContext';
-import { JobProvider } from './context/JobContext';
+import { JobProvider, useJobs } from './context/JobContext';
 import { AttendanceProvider } from './context/AttendanceContext';
 import { Navbar } from './components/Navbar';
 import { Hero } from './components/home/Hero';
@@ -14,15 +14,35 @@ import { WorkerDashboard } from './components/dashboard/WorkerDashboard';
 import { EmployerDashboard } from './components/dashboard/EmployerDashboard';
 import { ContentModals, ModalType } from './components/modals/ContentModals';
 import { ToastContainer, ToastMessage } from './components/common/Toast';
-import { UserRole } from './types';
+import { JobsNearMeView } from './components/location/JobsNearMeView';
+import { JobDetailModal } from './components/jobs/JobDetailModal';
+import { Job, UserRole } from './types';
 import { fireCelebrationConfetti } from './lib/confetti';
 
 import { AdminDashboard } from './components/admin/AdminDashboard';
 import { AIAssistantModal } from './components/common/AIAssistantModal';
-import { Shield, MapPin, Navigation, X } from 'lucide-react';
+import { Shield, MapPin, Navigation, X, ArrowLeft } from 'lucide-react';
 import { executeRecaptchaEnterprise } from './lib/recaptcha';
 
-type AppView = 'home' | 'worker-onboarding' | 'employer-onboarding' | 'dashboard' | 'admin';
+type AppView = 'home' | '50km-radius' | 'worker-onboarding' | 'employer-onboarding' | 'dashboard' | 'admin';
+
+const MODAL_PATHS: Record<ModalType, string> = {
+  about: '/about',
+  'how-it-works': '/how-it-works',
+  contact: '/contact',
+  privacy: '/privacy',
+  terms: '/terms',
+  help: '/help'
+};
+
+const PATH_TO_MODAL: Record<string, ModalType> = {
+  '/about': 'about',
+  '/how-it-works': 'how-it-works',
+  '/contact': 'contact',
+  '/privacy': 'privacy',
+  '/terms': 'terms',
+  '/help': 'help'
+};
 
 function MainApp() {
   const {
@@ -36,14 +56,23 @@ function MainApp() {
     switchActiveRole,
     enableAdditionalRole
   } = useAuth();
+  const {
+    savedJobIds,
+    myApplications,
+    applyToJob,
+    toggleSaveJob,
+    reportItem
+  } = useJobs();
 
   const [view, setView] = useState<AppView>('home');
   const [authModalOpen, setAuthModalOpen] = useState(false);
-  const [authInitialRole, setAuthInitialRole] = useState<UserRole>('worker');
+  const [authMode, setAuthMode] = useState<'signin' | 'signup' | 'forgot'>('signin');
+  const [authInitialRole, setAuthInitialRole] = useState<UserRole | undefined>(undefined);
   const [activeModal, setActiveModal] = useState<ModalType | null>(null);
   const [toasts, setToasts] = useState<ToastMessage[]>([]);
   const [aiModalOpen, setAiModalOpen] = useState(false);
   const [locationDeniedBanner, setLocationDeniedBanner] = useState(false);
+  const [publicSelectedJob, setPublicSelectedJob] = useState<Job | null>(null);
 
   // Execute reCAPTCHA Enterprise assessment on app initialization to verify token & update request.json
   useEffect(() => {
@@ -75,10 +104,11 @@ function MainApp() {
     );
   };
 
-  // Request browser geolocation permission immediately after login or when starting onboarding
+  // Request browser geolocation permission immediately after login or when starting onboarding or 50km-radius
   useEffect(() => {
-    const isOnboarding = view === 'worker-onboarding' || view === 'employer-onboarding';
-    if (currentUser || isOnboarding) {
+    const isOnboardingOrRadar =
+      view === 'worker-onboarding' || view === 'employer-onboarding' || view === '50km-radius';
+    if (currentUser || isOnboardingOrRadar) {
       requestUserLocationPermission();
     }
   }, [currentUser, view]);
@@ -107,11 +137,176 @@ function MainApp() {
     setView(newView);
   };
 
+  const openAuthWithRoute = (role?: UserRole, mode: 'signin' | 'signup' | 'forgot' = 'signin') => {
+    setAuthInitialRole(role);
+    setAuthMode(mode);
+    setAuthModalOpen(true);
+    const targetPath = mode === 'signup' ? '/signup' : mode === 'forgot' ? '/forgot-password' : '/signin';
+    if (window.location.pathname !== targetPath) {
+      window.history.pushState(null, '', targetPath);
+    }
+  };
+
+  const handleCloseAuthModal = () => {
+    setAuthModalOpen(false);
+    const path = window.location.pathname;
+    if (path === '/signin' || path === '/signup' || path === '/forgot-password') {
+      const fallbackPath = view === '50km-radius' ? '/50km-radius' : '/';
+      window.history.pushState(null, '', fallbackPath);
+    }
+  };
+
+  const handleOpenContentModal = (type: ModalType) => {
+    setActiveModal(type);
+    const targetPath = MODAL_PATHS[type];
+    if (targetPath && window.location.pathname !== targetPath) {
+      window.history.pushState(null, '', targetPath);
+    }
+  };
+
+  const handleCloseContentModal = () => {
+    setActiveModal(null);
+    const path = window.location.pathname;
+    if (PATH_TO_MODAL[path]) {
+      const fallbackPath =
+        view === '50km-radius'
+          ? '/50km-radius'
+          : currentUser
+            ? (userProfile?.activeRole === 'employer' ? '/findemployee' : '/jobfinder')
+            : '/';
+      window.history.pushState(null, '', fallbackPath);
+    }
+  };
+
+  const handleOpenAIAssistant = () => {
+    setAiModalOpen(true);
+    if (window.location.pathname !== '/ai-assistant') {
+      window.history.pushState(null, '', '/ai-assistant');
+    }
+  };
+
+  const handleCloseAIAssistant = () => {
+    setAiModalOpen(false);
+    if (window.location.pathname === '/ai-assistant') {
+      const fallbackPath =
+        view === '50km-radius'
+          ? '/50km-radius'
+          : currentUser
+            ? (userProfile?.activeRole === 'employer' ? '/findemployee' : '/jobfinder')
+            : '/';
+      window.history.pushState(null, '', fallbackPath);
+    }
+  };
+
+  const handleOpen50KmRadius = () => {
+    if (currentUser) {
+      const role = userProfile?.activeRole || intendedRole || 'worker';
+      if (role === 'worker') {
+        navigateTo('/jobfinder/50km-radius', 'dashboard', 'worker');
+      } else {
+        navigateTo('/findemployee/50km-radius', 'dashboard', 'employer');
+      }
+    } else {
+      navigateTo('/50km-radius', '50km-radius');
+    }
+  };
+
   // Synchronize on mount and browser back/forward buttons
   useEffect(() => {
     const handleLocationChange = () => {
       const path = window.location.pathname;
-      if (path === '/jobfinder') {
+
+      if (path === '/signin') {
+        if (currentUser) {
+          const role = userProfile?.activeRole || intendedRole || 'worker';
+          navigateTo(
+            role === 'worker' ? '/jobfinder' : '/findemployee',
+            role === 'worker'
+              ? (workerProfile ? 'dashboard' : 'worker-onboarding')
+              : (employerProfile ? 'dashboard' : 'employer-onboarding'),
+            role
+          );
+        } else {
+          setView('home');
+          setAuthMode('signin');
+          setAuthInitialRole(undefined);
+          setAuthModalOpen(true);
+        }
+        return;
+      }
+
+      if (path === '/signup') {
+        if (currentUser) {
+          const role = userProfile?.activeRole || intendedRole || 'worker';
+          navigateTo(
+            role === 'worker' ? '/jobfinder' : '/findemployee',
+            role === 'worker'
+              ? (workerProfile ? 'dashboard' : 'worker-onboarding')
+              : (employerProfile ? 'dashboard' : 'employer-onboarding'),
+            role
+          );
+        } else {
+          setView('home');
+          setAuthMode('signup');
+          setAuthModalOpen(true);
+        }
+        return;
+      }
+
+      if (path === '/forgot-password') {
+        setView('home');
+        setAuthMode('forgot');
+        setAuthModalOpen(true);
+        return;
+      }
+
+      if (PATH_TO_MODAL[path]) {
+        setActiveModal(PATH_TO_MODAL[path]);
+        return;
+      }
+
+      if (path === '/ai-assistant') {
+        setAiModalOpen(true);
+        return;
+      }
+
+      if (path === '/50km-radius') {
+        if (currentUser) {
+          const role = userProfile?.activeRole || intendedRole || 'worker';
+          navigateTo(
+            role === 'worker' ? '/jobfinder/50km-radius' : '/findemployee/50km-radius',
+            'dashboard',
+            role
+          );
+        } else {
+          setView('50km-radius');
+        }
+        return;
+      }
+
+      if (path === '/worker-onboarding') {
+        setIntendedRole('worker');
+        if (currentUser) {
+          setView('worker-onboarding');
+        } else {
+          setView('home');
+          openAuthWithRoute('worker', 'signup');
+        }
+        return;
+      }
+
+      if (path === '/employer-onboarding') {
+        setIntendedRole('employer');
+        if (currentUser) {
+          setView('employer-onboarding');
+        } else {
+          setView('home');
+          openAuthWithRoute('employer', 'signup');
+        }
+        return;
+      }
+
+      if (path === '/jobfinder' || path.startsWith('/jobfinder/')) {
         setIntendedRole('worker');
         if (currentUser) {
           if (workerProfile) {
@@ -123,9 +318,10 @@ function MainApp() {
         } else {
           setView('home');
           setAuthInitialRole('worker');
+          setAuthMode('signin');
           setAuthModalOpen(true);
         }
-      } else if (path === '/findemployee') {
+      } else if (path === '/findemployee' || path.startsWith('/findemployee/')) {
         setIntendedRole('employer');
         if (currentUser) {
           if (employerProfile) {
@@ -137,6 +333,7 @@ function MainApp() {
         } else {
           setView('home');
           setAuthInitialRole('employer');
+          setAuthMode('signin');
           setAuthModalOpen(true);
         }
       } else if (path === '/admin') {
@@ -165,7 +362,7 @@ function MainApp() {
     setAuthInitialRole(role);
 
     if (!currentUser) {
-      setAuthModalOpen(true);
+      openAuthWithRoute(role, 'signup');
     } else {
       // User is logged in
       if (role === 'worker') {
@@ -175,7 +372,7 @@ function MainApp() {
             addToast('info', 'Switched to Job Seeker Hub');
           });
         } else {
-          navigateTo('/jobfinder', 'worker-onboarding', 'worker');
+          navigateTo('/worker-onboarding', 'worker-onboarding', 'worker');
         }
       } else {
         if (employerProfile) {
@@ -184,7 +381,7 @@ function MainApp() {
             addToast('info', 'Switched to Employer Hub');
           });
         } else {
-          navigateTo('/findemployee', 'employer-onboarding', 'employer');
+          navigateTo('/employer-onboarding', 'employer-onboarding', 'employer');
         }
       }
     }
@@ -194,13 +391,13 @@ function MainApp() {
     addToast('success', `Welcome to JOBSETU!`, 'Signed In');
     if (selectedRole === 'worker') {
       if (!workerProfile) {
-        navigateTo('/jobfinder', 'worker-onboarding', 'worker');
+        navigateTo('/worker-onboarding', 'worker-onboarding', 'worker');
       } else {
         navigateTo('/jobfinder', 'dashboard', 'worker');
       }
     } else {
       if (!employerProfile) {
-        navigateTo('/findemployee', 'employer-onboarding', 'employer');
+        navigateTo('/employer-onboarding', 'employer-onboarding', 'employer');
       } else {
         navigateTo('/findemployee', 'dashboard', 'employer');
       }
@@ -222,7 +419,7 @@ function MainApp() {
   const handleActivateEmployer = async () => {
     await enableAdditionalRole('employer');
     if (!employerProfile) {
-      navigateTo('/findemployee', 'employer-onboarding', 'employer');
+      navigateTo('/employer-onboarding', 'employer-onboarding', 'employer');
       addToast('info', 'Please complete your business details to start recruiting.');
     } else {
       navigateTo('/findemployee', 'dashboard', 'employer');
@@ -233,7 +430,7 @@ function MainApp() {
   const handleActivateWorker = async () => {
     await enableAdditionalRole('worker');
     if (!workerProfile) {
-      navigateTo('/jobfinder', 'worker-onboarding', 'worker');
+      navigateTo('/worker-onboarding', 'worker-onboarding', 'worker');
       addToast('info', 'Please complete your vocational details to seek employment.');
     } else {
       navigateTo('/jobfinder', 'dashboard', 'worker');
@@ -308,27 +505,27 @@ function MainApp() {
         </div>
       )}
 
-      {/* Global Top Navbar (Shown ONLY before login; completely removed once logged in) */}
-      {!currentUser && view === 'home' && (
+      {/* Global Top Navbar (Shown before login on home or public 50km-radius page) */}
+      {!currentUser && (view === 'home' || view === '50km-radius') && (
         <Navbar
-          onOpenAuth={(role) => {
-            if (role) setAuthInitialRole(role);
-            setAuthModalOpen(true);
+          onOpenAuth={(role, mode) => {
+            openAuthWithRoute(role, mode || 'signin');
           }}
-          onOpenModal={(type) => setActiveModal(type)}
+          onOpenModal={(type) => handleOpenContentModal(type)}
           onGoHome={() => navigateTo('/', 'home')}
           onGoDashboard={() =>
             navigateTo(activeRole === 'worker' ? '/jobfinder' : '/findemployee', 'dashboard')
           }
           onStartOnboarding={(role) => {
             navigateTo(
-              role === 'worker' ? '/jobfinder' : '/findemployee',
+              role === 'worker' ? '/worker-onboarding' : '/employer-onboarding',
               role === 'worker' ? 'worker-onboarding' : 'employer-onboarding',
               role
             );
           }}
-          onOpenAIAssistant={() => setAiModalOpen(true)}
+          onOpenAIAssistant={handleOpenAIAssistant}
           onOpenAdmin={() => navigateTo('/admin', 'admin')}
+          onOpen50KmRadius={handleOpen50KmRadius}
         />
       )}
 
@@ -336,12 +533,86 @@ function MainApp() {
       <main className="flex-1">
         {view === 'home' && (
           <>
-            <Hero onSelectRole={handleSelectRoleFromHome} />
+            <Hero
+              onSelectRole={handleSelectRoleFromHome}
+              onOpen50KmRadius={handleOpen50KmRadius}
+            />
             <StatsSection />
-            <TopCompaniesSection onOpenAIAssistant={() => setAiModalOpen(true)} />
+            <TopCompaniesSection onOpenAIAssistant={handleOpenAIAssistant} />
             <HowItWorksSection onSelectRole={handleSelectRoleFromHome} />
             <SkillCategoriesShowcase />
           </>
+        )}
+
+        {view === '50km-radius' && (
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
+            <div className="flex flex-wrap items-center justify-between gap-4 bg-white rounded-2xl border border-gray-200 p-4 shadow-xs">
+              <div className="flex items-center gap-3">
+                <button
+                  type="button"
+                  onClick={() => navigateTo('/', 'home')}
+                  className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold text-xs transition-colors cursor-pointer"
+                >
+                  <ArrowLeft className="w-4 h-4" />
+                  <span>Back to Home</span>
+                </button>
+                <div>
+                  <h1 className="text-lg font-black text-gray-900">
+                    50 KM Radius — Hyperlocal Job & Worker Radar
+                  </h1>
+                  <p className="text-xs text-gray-500">
+                    Discover verified jobs within 50 KM of your GPS location or any Indian city
+                  </p>
+                </div>
+              </div>
+              {!currentUser && (
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => openAuthWithRoute(undefined, 'signin')}
+                    className="px-4 py-2 rounded-xl border border-gray-300 text-xs font-bold text-gray-700 hover:bg-gray-50 cursor-pointer"
+                  >
+                    Sign In
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => openAuthWithRoute(undefined, 'signup')}
+                    className="px-4 py-2 rounded-xl bg-[#2563EB] hover:bg-blue-700 text-white text-xs font-bold shadow-xs cursor-pointer"
+                  >
+                    Create Account to Apply
+                  </button>
+                </div>
+              )}
+            </div>
+
+            <JobsNearMeView
+              onApplyJob={(job: Job) => {
+                if (!currentUser) {
+                  openAuthWithRoute('worker', 'signin');
+                } else {
+                  setPublicSelectedJob(job);
+                }
+              }}
+            />
+
+            {publicSelectedJob && (
+              <JobDetailModal
+                job={publicSelectedJob}
+                onClose={() => setPublicSelectedJob(null)}
+                workerProfile={workerProfile}
+                isSaved={savedJobIds.includes(publicSelectedJob.id)}
+                hasApplied={myApplications.some(
+                  (a) => a.jobId === publicSelectedJob.id && a.status !== 'Withdrawn'
+                )}
+                onApply={async (job, note, resumeUrl, resumeName, formDetails) => {
+                  await applyToJob(job, note, resumeUrl, resumeName, formDetails);
+                  addToast('success', 'Official Job Application submitted!', 'Application Sent');
+                }}
+                onToggleSave={(jobId) => toggleSaveJob(jobId)}
+                onReport={(jobId, reason) => reportItem('job', jobId, reason)}
+              />
+            )}
+          </div>
         )}
 
         {view === 'worker-onboarding' && (
@@ -367,20 +638,20 @@ function MainApp() {
             {activeRole === 'worker' ? (
               <WorkerDashboard
                 onEditProfile={() =>
-                  navigateTo('/jobfinder', 'worker-onboarding', 'worker')
+                  navigateTo('/worker-onboarding', 'worker-onboarding', 'worker')
                 }
                 onActivateEmployer={handleActivateEmployer}
                 onSwitchRole={handleSwitchRole}
-                onOpenAIAssistant={() => setAiModalOpen(true)}
+                onOpenAIAssistant={handleOpenAIAssistant}
               />
             ) : (
               <EmployerDashboard
                 onEditProfile={() =>
-                  navigateTo('/findemployee', 'employer-onboarding', 'employer')
+                  navigateTo('/employer-onboarding', 'employer-onboarding', 'employer')
                 }
                 onActivateWorker={handleActivateWorker}
                 onSwitchRole={handleSwitchRole}
-                onOpenAIAssistant={() => setAiModalOpen(true)}
+                onOpenAIAssistant={handleOpenAIAssistant}
               />
             )}
           </>
@@ -399,7 +670,7 @@ function MainApp() {
       {currentUser?.email === 'sjtutorai@gmail.com' && view !== 'admin' && (
         <div className="fixed bottom-6 right-6 z-40 flex items-center gap-2">
           <button
-            onClick={() => setView('admin')}
+            onClick={() => navigateTo('/admin', 'admin')}
             className="px-3.5 py-2.5 rounded-full bg-slate-900 hover:bg-slate-800 text-amber-400 text-xs font-bold shadow-lg border border-slate-700 flex items-center gap-1.5 cursor-pointer transition-transform hover:scale-105"
             title="Open Admin Console"
           >
@@ -409,27 +680,38 @@ function MainApp() {
         </div>
       )}
 
-      {/* Global Footer (Shown only on public landing view when not logged in) */}
-      {!currentUser && view === 'home' && <Footer onOpenModal={(type) => setActiveModal(type)} />}
+      {/* Global Footer (Shown on public landing or 50km-radius view when not logged in) */}
+      {!currentUser && (view === 'home' || view === '50km-radius') && (
+        <Footer onOpenModal={(type) => handleOpenContentModal(type)} />
+      )}
 
       {/* AI Assistant Modal */}
       <AIAssistantModal
         isOpen={aiModalOpen}
-        onClose={() => setAiModalOpen(false)}
+        onClose={handleCloseAIAssistant}
       />
 
       {/* Authentication Modal */}
       <AuthModal
         isOpen={authModalOpen}
-        onClose={() => setAuthModalOpen(false)}
+        onClose={handleCloseAuthModal}
         initialRole={authInitialRole}
+        initialMode={authMode}
+        onModeUrlChange={(newMode) => {
+          setAuthMode(newMode);
+          const targetPath =
+            newMode === 'signup' ? '/signup' : newMode === 'forgot' ? '/forgot-password' : '/signin';
+          if (window.location.pathname !== targetPath) {
+            window.history.pushState(null, '', targetPath);
+          }
+        }}
         onAuthSuccess={handleAuthSuccess}
       />
 
       {/* Information & Legal Modals */}
       <ContentModals
         activeModal={activeModal}
-        onClose={() => setActiveModal(null)}
+        onClose={handleCloseContentModal}
         onSelectRole={handleSelectRoleFromHome}
       />
     </div>

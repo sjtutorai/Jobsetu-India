@@ -7,23 +7,24 @@ import {
   ChevronDown,
   LogOut,
   User,
-  PlusCircle,
   Menu,
   X,
   ShieldCheck,
   Sparkles,
-  Bell
+  Bell,
+  Navigation
 } from 'lucide-react';
 import { UserRole } from '../types';
 
 interface NavbarProps {
-  onOpenAuth: (role?: UserRole) => void;
+  onOpenAuth: (role?: UserRole, mode?: 'signin' | 'signup') => void;
   onOpenModal: (type: 'about' | 'how-it-works' | 'contact') => void;
   onGoHome: () => void;
   onGoDashboard: () => void;
   onStartOnboarding: (role: UserRole) => void;
   onOpenAIAssistant?: () => void;
   onOpenAdmin?: () => void;
+  onOpen50KmRadius?: () => void;
 }
 
 export const Navbar: React.FC<NavbarProps> = ({
@@ -33,7 +34,8 @@ export const Navbar: React.FC<NavbarProps> = ({
   onGoDashboard,
   onStartOnboarding,
   onOpenAIAssistant,
-  onOpenAdmin
+  onOpenAdmin,
+  onOpen50KmRadius
 }) => {
   const { currentUser, userProfile, logout, switchActiveRole, enableAdditionalRole } = useAuth();
   const { unreadNotificationsCount } = useJobs();
@@ -86,28 +88,35 @@ export const Navbar: React.FC<NavbarProps> = ({
           </div>
 
           {/* Desktop Navigation Links */}
-          <nav className="hidden md:flex items-center gap-8 text-sm font-semibold text-[#111827]">
+          <nav className="hidden md:flex items-center gap-6 text-sm font-semibold text-[#111827]">
             <button
               onClick={onGoHome}
-              className="text-[#2563EB] hover:text-blue-700 transition-colors"
+              className="text-[#2563EB] hover:text-blue-700 transition-colors cursor-pointer"
             >
               Home
             </button>
             <button
+              onClick={onOpen50KmRadius}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200 font-bold text-xs transition-all cursor-pointer shadow-2xs"
+            >
+              <Navigation className="w-3.5 h-3.5 text-emerald-600" />
+              <span>50 KM Radius</span>
+            </button>
+            <button
               onClick={() => onOpenModal('about')}
-              className="text-[#6B7280] hover:text-[#111827] transition-colors"
+              className="text-[#6B7280] hover:text-[#111827] transition-colors cursor-pointer"
             >
               About Us
             </button>
             <button
               onClick={() => onOpenModal('how-it-works')}
-              className="text-[#6B7280] hover:text-[#111827] transition-colors"
+              className="text-[#6B7280] hover:text-[#111827] transition-colors cursor-pointer"
             >
               How It Works
             </button>
             <button
               onClick={() => onOpenModal('contact')}
-              className="text-[#6B7280] hover:text-[#111827] transition-colors"
+              className="text-[#6B7280] hover:text-[#111827] transition-colors cursor-pointer"
             >
               Contact
             </button>
@@ -293,16 +302,16 @@ export const Navbar: React.FC<NavbarProps> = ({
             ) : (
               <div className="flex items-center gap-3">
                 <button
-                  onClick={() => onOpenAuth('worker')}
-                  className="px-4 py-2 text-sm font-semibold text-gray-700 hover:text-[#2563EB] transition-colors"
+                  onClick={() => onOpenAuth(undefined, 'signin')}
+                  className="px-4 py-2 text-sm font-semibold text-gray-700 hover:text-[#2563EB] transition-colors cursor-pointer"
                 >
                   Sign In
                 </button>
                 <button
-                  onClick={() => onOpenAuth()}
-                  className="px-5 py-2.5 rounded-xl bg-[#2563EB] hover:bg-blue-700 text-white text-sm font-bold shadow-md shadow-blue-500/20 transition-all hover:-translate-y-0.5"
+                  onClick={() => onOpenAuth(undefined, 'signup')}
+                  className="px-5 py-2.5 rounded-xl bg-[#2563EB] hover:bg-blue-700 text-white text-sm font-bold shadow-md shadow-blue-500/20 transition-all hover:-translate-y-0.5 cursor-pointer"
                 >
-                  Get Started
+                  Create Account
                 </button>
               </div>
             )}
@@ -310,6 +319,13 @@ export const Navbar: React.FC<NavbarProps> = ({
 
           {/* Mobile Menu Button */}
           <div className="flex md:hidden items-center gap-2">
+            <button
+              onClick={onOpen50KmRadius}
+              className="px-2.5 py-1.5 text-xs font-bold rounded-lg bg-emerald-50 text-emerald-700 border border-emerald-200 flex items-center gap-1"
+            >
+              <Navigation className="w-3 h-3" />
+              <span>50 KM</span>
+            </button>
             {currentUser && (
               <button
                 onClick={onGoDashboard}
@@ -341,6 +357,16 @@ export const Navbar: React.FC<NavbarProps> = ({
               className="text-left py-2 px-3 rounded-lg text-[#2563EB] bg-blue-50"
             >
               Home
+            </button>
+            <button
+              onClick={() => {
+                setMobileMenuOpen(false);
+                onOpen50KmRadius?.();
+              }}
+              className="text-left py-2.5 px-3 rounded-lg text-emerald-700 bg-emerald-50 border border-emerald-200 flex items-center gap-2 font-bold"
+            >
+              <Navigation className="w-4 h-4 text-emerald-600" />
+              <span>50 KM Radius — Jobs & Workers</span>
             </button>
             <button
               onClick={() => {
@@ -434,7 +460,7 @@ export const Navbar: React.FC<NavbarProps> = ({
               <button
                 onClick={() => {
                   setMobileMenuOpen(false);
-                  onOpenAuth('worker');
+                  onOpenAuth(undefined, 'signin');
                 }}
                 className="w-full py-2.5 rounded-xl border border-gray-300 font-bold text-gray-700 text-sm"
               >
@@ -443,11 +469,11 @@ export const Navbar: React.FC<NavbarProps> = ({
               <button
                 onClick={() => {
                   setMobileMenuOpen(false);
-                  onOpenAuth();
+                  onOpenAuth(undefined, 'signup');
                 }}
                 className="w-full py-2.5 rounded-xl bg-[#2563EB] text-white font-bold text-sm shadow-md"
               >
-                Get Started
+                Create Account
               </button>
             </div>
           )}

@@ -20,6 +20,7 @@ import { useAuth } from './AuthContext';
 import {
   Job,
   Application,
+  ApplicationFormDetails,
   ApplicationStatus,
   InterviewDetails,
   Conversation,
@@ -56,7 +57,13 @@ interface JobContextType {
   updateJob: (jobId: string, jobData: Partial<Job>) => Promise<void>;
   deleteJob: (jobId: string) => Promise<void>;
   changeJobStatus: (jobId: string, status: Job['status']) => Promise<void>;
-  applyToJob: (job: Job, candidateNote?: string, resumeUrl?: string, resumeName?: string) => Promise<void>;
+  applyToJob: (
+    job: Job,
+    candidateNote?: string,
+    resumeUrl?: string,
+    resumeName?: string,
+    formDetails?: ApplicationFormDetails
+  ) => Promise<void>;
   updateApplicationStatus: (applicationId: string, newStatus: ApplicationStatus, interviewDetails?: InterviewDetails) => Promise<void>;
   toggleSaveJob: (jobId: string) => Promise<void>;
   toggleSaveCandidate: (workerId: string) => Promise<void>;
@@ -346,7 +353,7 @@ export const JobProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     const jobsRef = collection(db, 'jobs');
     const newDocRef = doc(jobsRef);
 
-    const payload: Job = {
+    const rawPayload: Record<string, any> = {
       ...jobData,
       id: newDocRef.id,
       employerId: currentUser.uid,
@@ -358,7 +365,11 @@ export const JobProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       updatedAt: serverTimestamp()
     };
 
-    await setDoc(newDocRef, payload).catch(err => {
+    const cleanPayload = Object.fromEntries(
+      Object.entries(rawPayload).filter(([_, value]) => value !== undefined)
+    );
+
+    await setDoc(newDocRef, cleanPayload).catch(err => {
       handleFirestoreError(err, OperationType.CREATE, `jobs/${newDocRef.id}`);
     });
 
@@ -367,10 +378,10 @@ export const JobProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   const updateJob = async (jobId: string, jobData: Partial<Job>) => {
     const jobRef = doc(db, 'jobs', jobId);
-    await updateDoc(jobRef, {
-      ...jobData,
-      updatedAt: serverTimestamp()
-    }).catch(err => {
+    const cleanUpdates = Object.fromEntries(
+      Object.entries({ ...jobData, updatedAt: serverTimestamp() }).filter(([_, v]) => v !== undefined)
+    );
+    await updateDoc(jobRef, cleanUpdates).catch(err => {
       handleFirestoreError(err, OperationType.UPDATE, `jobs/${jobId}`);
     });
   };
@@ -386,7 +397,13 @@ export const JobProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     await updateJob(jobId, { status });
   };
 
-  const applyToJob = async (job: Job, candidateNote?: string, customResumeUrl?: string, customResumeName?: string) => {
+  const applyToJob = async (
+    job: Job,
+    candidateNote?: string,
+    customResumeUrl?: string,
+    customResumeName?: string,
+    formDetails?: ApplicationFormDetails
+  ) => {
     if (!currentUser) throw new Error('You must be signed in to apply for a job.');
 
     // Prevent duplicate applications
@@ -398,23 +415,39 @@ export const JobProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     const appRef = collection(db, 'applications');
     const newDocRef = doc(appRef);
 
-    const applicationPayload: Application = {
+    const applicantName =
+      formDetails?.applicantName?.trim() ||
+      workerProfile?.fullName ||
+      userProfile?.name ||
+      'Applicant';
+
+    const rawApplicationPayload: Record<string, any> = {
       id: newDocRef.id,
       jobId: job.id,
       jobTitle: job.title,
       employerId: job.employerId,
       employerName: job.employerName,
       workerId: currentUser.uid,
-      workerName: workerProfile?.fullName || userProfile?.name || 'Applicant',
+      workerName: applicantName,
+      workerPhone: formDetails?.applicantPhone?.trim() || workerProfile?.phone || userProfile?.phone || '',
+      workerEmail: formDetails?.applicantEmail?.trim() || workerProfile?.email || userProfile?.email || currentUser.email || '',
       workerPhoto: workerProfile?.profilePhoto || userProfile?.profilePhoto || '',
       workerSkills: workerProfile?.skills || [],
-      workerExperience: workerProfile?.experience || 'Fresher',
-      workerEducation: workerProfile?.education || 'Higher secondary',
-      workerCity: workerProfile?.city || '',
-      workerState: workerProfile?.state || '',
-      workerPincode: workerProfile?.pincode || '',
+      workerExperience: formDetails?.experience || workerProfile?.experience || 'Fresher',
+      workerEducation: formDetails?.qualification || workerProfile?.education || 'Higher secondary',
+      workerCity: formDetails?.applicantCity?.trim() || workerProfile?.city || '',
+      workerState: formDetails?.applicantState?.trim() || workerProfile?.state || '',
+      workerPincode: formDetails?.applicantPincode?.trim() || workerProfile?.pincode || '',
       workerLat: workerProfile?.lat,
       workerLng: workerProfile?.lng,
+      expectedSalary:
+        formDetails?.expectedSalary?.trim() ||
+        `₹${job.minSalary.toLocaleString('en-IN')} - ₹${job.maxSalary.toLocaleString('en-IN')} / ${job.paymentFrequency.replace('Per ', '')}`,
+      availabilityToJoin: formDetails?.availabilityToJoin || 'Immediate (Within 1-3 Days)',
+      preferredShift: formDetails?.preferredShift || job.employmentType || 'Full-Time Shift',
+      applicationSubject:
+        formDetails?.applicationSubject?.trim() ||
+        `Application for the post of ${job.title} at ${job.employerName}`,
       candidateNote: candidateNote || '',
       resumeUrl: customResumeUrl || workerProfile?.resumeUrl || '',
       resumeName: customResumeName || workerProfile?.resumeName || '',
@@ -423,7 +456,11 @@ export const JobProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       updatedAt: serverTimestamp()
     };
 
-    await setDoc(newDocRef, applicationPayload).catch(err => {
+    const cleanApplicationPayload = Object.fromEntries(
+      Object.entries(rawApplicationPayload).filter(([_, value]) => value !== undefined)
+    );
+
+    await setDoc(newDocRef, cleanApplicationPayload).catch(err => {
       handleFirestoreError(err, OperationType.CREATE, `applications/${newDocRef.id}`);
     });
 

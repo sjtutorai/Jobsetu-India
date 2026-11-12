@@ -94,8 +94,8 @@ export default async function handler(req: any, res: any) {
           expiresInSeconds: 120
         });
       }
-    } catch (fetchErr) {
-      console.warn('[reCAPTCHA Enterprise Vercel] Assessment POST warning:', fetchErr);
+    } catch {
+      // Gracefully fall back if network or API key restriction blocks direct assessment call
     }
 
     return res.status(200).json({

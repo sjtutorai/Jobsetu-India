@@ -47,8 +47,8 @@ export function setupRecaptchaRoutes(app: express.Express) {
 
       try {
         fs.writeFileSync(requestJsonPath, savedJsonString, 'utf-8');
-      } catch (writeErr) {
-        console.warn('[reCAPTCHA Enterprise] Could not write request.json:', writeErr);
+      } catch {
+        // Ignore filesystem write errors in read-only environments
       }
 
       // Read the saved JSON data from request.json if available
@@ -92,12 +92,9 @@ export function setupRecaptchaRoutes(app: express.Express) {
             assessment,
             expiresInSeconds: 120
           });
-        } else {
-          const errText = await googleRes.text();
-          console.warn('[reCAPTCHA Enterprise] Assessment API response:', googleRes.status, errText);
         }
-      } catch (fetchErr) {
-        console.warn('[reCAPTCHA Enterprise] Assessment POST warning:', fetchErr);
+      } catch {
+        // Gracefully fall back if network or API key restriction blocks direct assessment call
       }
 
       return res.json({
@@ -109,7 +106,6 @@ export function setupRecaptchaRoutes(app: express.Express) {
         expiresInSeconds: 120
       });
     } catch (error: any) {
-      console.error('[reCAPTCHA Enterprise] Backend verification error:', error);
       return res.status(500).json({
         verified: false,
         error: error?.message || 'Failed to verify reCAPTCHA Enterprise token.'

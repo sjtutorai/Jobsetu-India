@@ -29,12 +29,33 @@ export type EducationLevel =
   | 'Postgraduate'
   | 'Other';
 
+export const EDUCATION_LEVELS: EducationLevel[] = [
+  'No formal education',
+  'Primary',
+  'Secondary',
+  'Higher secondary',
+  'Diploma',
+  'ITI',
+  'Undergraduate',
+  'Graduate',
+  'Postgraduate',
+  'Other'
+];
+
 export type ExperienceLevel =
   | 'Fresher'
   | 'Less than one year'
   | '1–3 years'
   | '3–5 years'
   | 'More than five years';
+
+export const EXPERIENCE_LEVELS: ExperienceLevel[] = [
+  'Fresher',
+  'Less than one year',
+  '1–3 years',
+  '3–5 years',
+  'More than five years'
+];
 
 export interface JobPreferences {
   jobTypes: string[];
@@ -46,6 +67,8 @@ export interface JobPreferences {
 export interface WorkerProfile {
   uid: string;
   fullName: string;
+  phone?: string;
+  email?: string;
   dateOfBirth?: string;
   ageEligibilityConfirmed: boolean;
   gender: Gender;
@@ -166,6 +189,21 @@ export interface InterviewDetails {
   notes?: string;
 }
 
+export interface ApplicationFormDetails {
+  applicantName?: string;
+  applicantPhone?: string;
+  applicantEmail?: string;
+  applicantCity?: string;
+  applicantState?: string;
+  applicantPincode?: string;
+  qualification?: string;
+  experience?: string;
+  expectedSalary?: string;
+  availabilityToJoin?: string;
+  preferredShift?: string;
+  applicationSubject?: string;
+}
+
 export interface Application {
   id: string;
   jobId: string;
@@ -174,6 +212,8 @@ export interface Application {
   employerName: string;
   workerId: string;
   workerName: string;
+  workerPhone?: string;
+  workerEmail?: string;
   workerPhoto?: string;
   workerSkills: string[];
   workerExperience: string;
@@ -183,6 +223,10 @@ export interface Application {
   workerPincode?: string;
   workerLat?: number;
   workerLng?: number;
+  expectedSalary?: string;
+  availabilityToJoin?: string;
+  preferredShift?: string;
+  applicationSubject?: string;
   candidateNote?: string;
   resumeUrl?: string;
   resumeName?: string;

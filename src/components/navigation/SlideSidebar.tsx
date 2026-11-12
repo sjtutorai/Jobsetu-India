@@ -100,10 +100,10 @@ export const SlideSidebar: React.FC<SlideSidebarProps> = ({
     },
     {
       id: 'jobs_near_me',
-      label: 'Jobs Near Me',
+      label: '50 KM Radius (Jobs)',
       subtext: '5 KM - 50 KM Radar & Map',
       icon: Search,
-      badge: 'Radar',
+      badge: '50 KM',
       badgeColor: 'bg-blue-600 text-white'
     },
     {
@@ -204,10 +204,10 @@ export const SlideSidebar: React.FC<SlideSidebarProps> = ({
     },
     {
       id: 'workers_near_me',
-      label: 'Workers Near Me',
+      label: '50 KM Radius (Workers)',
       subtext: '5 KM - 50 KM Radar & Map',
       icon: Users,
-      badge: 'Live Radar',
+      badge: '50 KM',
       badgeColor: 'bg-amber-500 text-slate-950'
     },
     {

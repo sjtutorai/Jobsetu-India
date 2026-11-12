@@ -1,13 +1,14 @@
 import React from 'react';
 import { RoleCards } from './RoleCards';
 import { UserRole } from '../../types';
-import { ShieldCheck, MapPin, Zap } from 'lucide-react';
+import { ShieldCheck, MapPin, Zap, Navigation } from 'lucide-react';
 
 interface HeroProps {
   onSelectRole: (role: UserRole) => void;
+  onOpen50KmRadius?: () => void;
 }
 
-export const Hero: React.FC<HeroProps> = ({ onSelectRole }) => {
+export const Hero: React.FC<HeroProps> = ({ onSelectRole, onOpen50KmRadius }) => {
   return (
     <section className="relative overflow-hidden pt-12 pb-20 lg:pt-20 lg:pb-28 bg-gradient-to-b from-blue-50/60 via-white to-gray-50/50">
       {/* Decorative ambient elements */}
@@ -34,9 +35,23 @@ export const Hero: React.FC<HeroProps> = ({ onSelectRole }) => {
         </h2>
 
         {/* Description */}
-        <p className="text-base sm:text-lg lg:text-xl text-[#6B7280] max-w-3xl leading-relaxed mb-12 sm:mb-16">
+        <p className="text-base sm:text-lg lg:text-xl text-[#6B7280] max-w-3xl leading-relaxed mb-8">
           JOBSETU connects job seekers with employers across India. Discover opportunities or find suitable employees for your business.
         </p>
+
+        {/* Prominent 50 KM Radius Quick Action Button */}
+        {onOpen50KmRadius && (
+          <div className="mb-10">
+            <button
+              type="button"
+              onClick={onOpen50KmRadius}
+              className="inline-flex items-center gap-2.5 px-6 py-3.5 rounded-2xl bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-sm shadow-lg shadow-emerald-600/25 transition-all hover:-translate-y-0.5 cursor-pointer"
+            >
+              <Navigation className="w-4 h-4" />
+              <span>Explore 50 KM Radius — Find Jobs & Workers Near Me</span>
+            </button>
+          </div>
+        )}
 
         {/* The Two Large Prominent Cards */}
         <RoleCards onSelectRole={onSelectRole} />
@@ -58,8 +73,8 @@ export const Hero: React.FC<HeroProps> = ({ onSelectRole }) => {
               <MapPin className="w-5 h-5" />
             </div>
             <div>
-              <p className="text-xs font-bold text-gray-900">Hyperlocal & National</p>
-              <p className="text-[11px] text-gray-500">By district, city, pin code & state</p>
+              <p className="text-xs font-bold text-gray-900">50 KM Hyperlocal Radar</p>
+              <p className="text-[11px] text-gray-500">Live GPS distance within 50 KM radius</p>
             </div>
           </div>
 

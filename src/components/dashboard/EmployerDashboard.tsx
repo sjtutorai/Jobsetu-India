@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { useJobs } from '../../context/JobContext';
 import { JobPostForm } from '../jobs/JobPostForm';
@@ -38,7 +38,8 @@ import {
   Edit3,
   Menu,
   PhoneCall,
-  UserCheck
+  UserCheck,
+  Navigation
 } from 'lucide-react';
 
 interface EmployerDashboardProps {
@@ -48,7 +49,7 @@ interface EmployerDashboardProps {
   onOpenAIAssistant?: () => void;
 }
 
-type EmployerTab =
+export type EmployerTab =
   | 'overview'
   | 'workers_near_me'
   | 'post_job'
@@ -64,6 +65,49 @@ type EmployerTab =
   | 'profile'
   | 'notifications'
   | 'settings';
+
+const EMPLOYER_TAB_TO_SLUG: Record<EmployerTab, string> = {
+  overview: '/findemployee',
+  workers_near_me: '/findemployee/50km-radius',
+  post_job: '/findemployee/post-job',
+  manage_jobs: '/findemployee/manage-jobs',
+  find_workers: '/findemployee/find-workers',
+  trust_centre: '/findemployee/trust-centre',
+  attendance: '/findemployee/attendance',
+  hiring_requests: '/findemployee/hiring-requests',
+  top_companies: '/findemployee/top-companies',
+  applications: '/findemployee/applications',
+  saved_candidates: '/findemployee/saved-candidates',
+  messages: '/findemployee/messages',
+  profile: '/findemployee/profile',
+  notifications: '/findemployee/notifications',
+  settings: '/findemployee/settings'
+};
+
+const parseEmployerTabFromPath = (pathname: string): EmployerTab => {
+  const clean = pathname.replace(/\/+$/, '');
+  if (
+    clean === '/50km-radius' ||
+    clean === '/findemployee/50km-radius' ||
+    clean === '/findemployee/workers-near-me'
+  ) {
+    return 'workers_near_me';
+  }
+  if (clean === '/findemployee/post-job') return 'post_job';
+  if (clean === '/findemployee/manage-jobs') return 'manage_jobs';
+  if (clean === '/findemployee/find-workers') return 'find_workers';
+  if (clean === '/findemployee/trust-centre') return 'trust_centre';
+  if (clean === '/findemployee/attendance') return 'attendance';
+  if (clean === '/findemployee/hiring-requests') return 'hiring_requests';
+  if (clean === '/findemployee/top-companies') return 'top_companies';
+  if (clean === '/findemployee/applications') return 'applications';
+  if (clean === '/findemployee/saved-candidates') return 'saved_candidates';
+  if (clean === '/findemployee/messages') return 'messages';
+  if (clean === '/findemployee/profile') return 'profile';
+  if (clean === '/findemployee/notifications') return 'notifications';
+  if (clean === '/findemployee/settings') return 'settings';
+  return 'overview';
+};
 
 export const EmployerDashboard: React.FC<EmployerDashboardProps> = ({
   onEditProfile,
@@ -82,11 +126,29 @@ export const EmployerDashboard: React.FC<EmployerDashboardProps> = ({
     setActiveConversationId
   } = useJobs();
 
-  const [activeTab, setActiveTab] = useState<EmployerTab>('overview');
+  const [activeTab, setActiveTabState] = useState<EmployerTab>(() =>
+    parseEmployerTabFromPath(window.location.pathname)
+  );
   const [editingJob, setEditingJob] = useState<Job | null>(null);
   const [hiringTargetWorker, setHiringTargetWorker] = useState<WorkerProfile | null>(null);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isCollapsedDesktop, setIsCollapsedDesktop] = useState(false);
+
+  const setActiveTab = (tab: EmployerTab) => {
+    setActiveTabState(tab);
+    const targetPath = EMPLOYER_TAB_TO_SLUG[tab] || '/findemployee';
+    if (window.location.pathname !== targetPath) {
+      window.history.pushState(null, '', targetPath);
+    }
+  };
+
+  useEffect(() => {
+    const syncFromUrl = () => {
+      setActiveTabState(parseEmployerTabFromPath(window.location.pathname));
+    };
+    window.addEventListener('popstate', syncFromUrl);
+    return () => window.removeEventListener('popstate', syncFromUrl);
+  }, []);
 
   const enabledRoles = userProfile?.enabledRoles || ['employer'];
   const hasWorkerRole = enabledRoles.includes('worker');
@@ -197,6 +259,15 @@ export const EmployerDashboard: React.FC<EmployerDashboardProps> = ({
           <div className="flex items-center gap-2">
             <button
               type="button"
+              onClick={() => setActiveTab('workers_near_me')}
+              className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-amber-500 text-slate-950 hover:bg-amber-400 text-xs font-extrabold shadow-xs transition-colors cursor-pointer"
+            >
+              <Navigation className="w-3.5 h-3.5" />
+              <span>50 KM Radius</span>
+            </button>
+
+            <button
+              type="button"
               onClick={() => {
                 setEditingJob(null);
                 setActiveTab('post_job');
@@ -271,6 +342,15 @@ export const EmployerDashboard: React.FC<EmployerDashboardProps> = ({
                 </div>
 
                 <div className="flex flex-wrap items-center gap-3">
+                  <button
+                    type="button"
+                    onClick={() => setActiveTab('workers_near_me')}
+                    className="py-2.5 px-5 rounded-2xl bg-slate-950 text-amber-400 hover:bg-slate-900 font-black text-xs shadow-md transition-all flex items-center gap-2 cursor-pointer"
+                  >
+                    <Navigation className="w-4 h-4" />
+                    <span>50 KM Radius Radar</span>
+                  </button>
+
                   <button
                     type="button"
                     onClick={() => {

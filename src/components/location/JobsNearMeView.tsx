@@ -50,8 +50,8 @@ export const JobsNearMeView: React.FC<JobsNearMeViewProps> = ({
       : 'India (Tap Map or Allow GPS)'
   );
 
-  // Search Radius: 5, 10, 20, 30, 50 or custom
-  const [radiusKm, setRadiusKm] = useState<number>(20);
+  // Search Radius: default 50 KM (supports 5, 10, 20, 30, 50 or custom)
+  const [radiusKm, setRadiusKm] = useState<number>(50);
   const [isCustomRadius, setIsCustomRadius] = useState<boolean>(false);
 
   // View mode: 'split' | 'list' | 'map'
@@ -213,14 +213,14 @@ export const JobsNearMeView: React.FC<JobsNearMeViewProps> = ({
             <div className="flex items-center gap-2">
               <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse" />
               <span className="text-xs font-bold uppercase tracking-wider text-blue-200">
-                Location-Based Job Discovery
+                50 KM Radius Live Radar & India Map
               </span>
             </div>
             <h2 className="text-2xl sm:text-3xl font-black text-white tracking-tight">
-              Jobs Near Me
+              50 KM Radius — Jobs Near Me
             </h2>
             <p className="text-xs sm:text-sm text-blue-100 max-w-xl">
-              Discover verified shops, enterprises, and local workplaces within your selected radius across India.
+              Discover verified shops, enterprises, coaching classes, and local workplaces within a 50 KM radius across India.
             </p>
           </div>
 
