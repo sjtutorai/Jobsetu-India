@@ -60,7 +60,6 @@ import {
 import { JobsNearMeView } from '../location/JobsNearMeView';
 import { WorkerAttendanceView } from '../attendance/WorkerAttendanceView';
 import { HiringRequestsView } from '../hiring/HiringRequestsView';
-import { TopCompaniesSection } from '../companies/TopCompaniesSection';
 import { TrustVerificationCentre } from '../trust/TrustVerificationCentre';
 import {
   AnimatedImage,
@@ -90,7 +89,6 @@ export type WorkerTab =
   | 'trust_centre'
   | 'attendance'
   | 'hiring_requests'
-  | 'top_companies'
   | 'my_applications'
   | 'saved_jobs'
   | 'messages'
@@ -105,7 +103,6 @@ const WORKER_TAB_TO_SLUG: Record<WorkerTab, string> = {
   trust_centre: '/jobfinder/trust-centre',
   attendance: '/jobfinder/attendance',
   hiring_requests: '/jobfinder/hiring-requests',
-  top_companies: '/jobfinder/top-companies',
   my_applications: '/jobfinder/my-applications',
   saved_jobs: '/jobfinder/saved-jobs',
   messages: '/jobfinder/messages',
@@ -123,7 +120,6 @@ const parseWorkerTabFromPath = (pathname: string): WorkerTab => {
   if (clean === '/jobfinder/trust-centre') return 'trust_centre';
   if (clean === '/jobfinder/attendance') return 'attendance';
   if (clean === '/jobfinder/hiring-requests') return 'hiring_requests';
-  if (clean === '/jobfinder/top-companies') return 'top_companies';
   if (clean === '/jobfinder/my-applications') return 'my_applications';
   if (clean === '/jobfinder/saved-jobs') return 'saved_jobs';
   if (clean === '/jobfinder/messages') return 'messages';
@@ -451,7 +447,6 @@ export const WorkerDashboard: React.FC<WorkerDashboardProps> = ({
                   {activeTab === 'trust_centre' && 'JOBSETU Trust & Verification Centre'}
                   {activeTab === 'attendance' && 'My Attendance & Shifts (GPS / QR Punch)'}
                   {activeTab === 'hiring_requests' && 'Direct Employer Hiring Offers'}
-                  {activeTab === 'top_companies' && 'Top Companies in India (Official Careers)'}
                   {activeTab === 'my_applications' && 'My Applications'}
                   {activeTab === 'saved_jobs' && 'Saved Jobs'}
                   {activeTab === 'messages' && 'Employer Messages & Inquiries'}
@@ -1048,16 +1043,6 @@ export const WorkerDashboard: React.FC<WorkerDashboardProps> = ({
                 setActiveConversationId(convId);
                 setActiveTab('messages');
               }}
-            />
-          </div>
-        )}
-
-        {/* TAB: TOP COMPANIES IN INDIA */}
-        {activeTab === 'top_companies' && (
-          <div className="animate-in fade-in">
-            <TopCompaniesSection
-              onOpenAIAssistant={onOpenAIAssistant}
-              isStandalonePage={true}
             />
           </div>
         )}

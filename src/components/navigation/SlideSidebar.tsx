@@ -143,12 +143,6 @@ export const SlideSidebar: React.FC<SlideSidebarProps> = ({
       icon: Send
     },
     {
-      id: 'top_companies',
-      label: 'Top Companies',
-      subtext: 'Official Careers India',
-      icon: Building2
-    },
-    {
       id: 'my_applications',
       label: 'My Applications',
       subtext: 'Track Progress',
@@ -293,12 +287,6 @@ export const SlideSidebar: React.FC<SlideSidebarProps> = ({
       icon: ShieldCheck,
       badge: 'e-KYC',
       badgeColor: 'bg-emerald-100 text-emerald-800'
-    },
-    {
-      id: 'top_companies',
-      label: 'Top Companies',
-      subtext: 'Industry Ecosystem',
-      icon: Building2
     },
     {
       id: 'settings',

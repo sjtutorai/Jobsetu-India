@@ -17,7 +17,6 @@ import { WorkersNearMeView } from '../location/WorkersNearMeView';
 import { EmployerAttendanceView } from '../attendance/EmployerAttendanceView';
 import { HiringRequestsView } from '../hiring/HiringRequestsView';
 import { SendHiringRequestModal } from '../hiring/SendHiringRequestModal';
-import { TopCompaniesSection } from '../companies/TopCompaniesSection';
 import { TrustVerificationCentre } from '../trust/TrustVerificationCentre';
 import {
   AnimatedImage,
@@ -95,7 +94,6 @@ export type EmployerTab =
   | 'trust_centre'
   | 'attendance'
   | 'hiring_requests'
-  | 'top_companies'
   | 'applications'
   | 'saved_candidates'
   | 'messages'
@@ -113,7 +111,6 @@ const EMPLOYER_TAB_TO_SLUG: Record<EmployerTab, string> = {
   trust_centre: '/findemployee/trust-centre',
   attendance: '/findemployee/attendance',
   hiring_requests: '/findemployee/hiring-requests',
-  top_companies: '/findemployee/top-companies',
   applications: '/findemployee/applications',
   saved_candidates: '/findemployee/saved-candidates',
   messages: '/findemployee/messages',
@@ -138,7 +135,6 @@ const parseEmployerTabFromPath = (pathname: string): EmployerTab => {
   if (clean === '/findemployee/trust-centre') return 'trust_centre';
   if (clean === '/findemployee/attendance') return 'attendance';
   if (clean === '/findemployee/hiring-requests') return 'hiring_requests';
-  if (clean === '/findemployee/top-companies') return 'top_companies';
   if (clean === '/findemployee/applications') return 'applications';
   if (clean === '/findemployee/saved-candidates') return 'saved_candidates';
   if (clean === '/findemployee/messages') return 'messages';
@@ -618,7 +614,6 @@ export const EmployerDashboard: React.FC<EmployerDashboardProps> = ({
                   {activeTab === 'trust_centre' && 'JOBSETU Employer Trust & Verification Centre'}
                   {activeTab === 'attendance' && 'Attendance Management, Geofences & Shifts'}
                   {activeTab === 'hiring_requests' && 'Hiring History & Sent Offers'}
-                  {activeTab === 'top_companies' && 'Top Companies in India (Industry Ecosystem)'}
                   {activeTab === 'post_job' && 'Post New Job'}
                   {activeTab === 'manage_jobs' && 'Manage Job Posts'}
                   {activeTab === 'applications' && 'View Candidate Applications'}
@@ -2325,16 +2320,6 @@ export const EmployerDashboard: React.FC<EmployerDashboardProps> = ({
                   setActiveConversationId(convId);
                   setActiveTab('messages');
                 }}
-              />
-            </div>
-          )}
-
-          {/* TAB: TOP COMPANIES IN INDIA */}
-          {activeTab === 'top_companies' && (
-            <div className="animate-in fade-in">
-              <TopCompaniesSection
-                onOpenAIAssistant={onOpenAIAssistant}
-                isStandalonePage={true}
               />
             </div>
           )}

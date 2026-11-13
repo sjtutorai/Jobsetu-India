@@ -1816,7 +1816,7 @@ export const WorkerOnboarding: React.FC<WorkerOnboardingProps> = ({
                         type="text"
                         value={previousCompanyName}
                         onChange={(e) => setPreviousCompanyName(e.target.value)}
-                        placeholder="e.g. L&T Construction / Local Contractor"
+                        placeholder="e.g. Local Electrical Contractor / Private Company"
                         className="w-full pl-9 pr-3.5 py-2.5 rounded-xl border border-slate-300 focus:border-[#2563EB] outline-none text-sm"
                       />
                     </div>

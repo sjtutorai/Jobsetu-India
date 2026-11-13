@@ -5,7 +5,6 @@ import { AttendanceProvider } from './context/AttendanceContext';
 import { Navbar } from './components/Navbar';
 import { Hero } from './components/home/Hero';
 import { StatsSection, HowItWorksSection, SkillCategoriesShowcase } from './components/home/HomeSections';
-import { TopCompaniesSection } from './components/companies/TopCompaniesSection';
 import { Footer } from './components/Footer';
 import { AuthModal } from './components/auth/AuthModal';
 import { WorkerOnboarding } from './components/onboarding/WorkerOnboarding';
@@ -652,7 +651,6 @@ function MainApp() {
                   onOpen50KmRadius={handleOpen50KmRadius}
                 />
                 <StatsSection />
-                <TopCompaniesSection onOpenAIAssistant={handleOpenAIAssistant} />
                 <HowItWorksSection onSelectRole={handleSelectRoleFromHome} />
                 <SkillCategoriesShowcase />
               </>

@@ -826,69 +826,6 @@ export interface AttendanceCorrection {
   updatedAt?: any;
 }
 
-// ==================== PART 5: TOP COMPANIES IN INDIA ====================
-export const COMPANY_INDUSTRIES = [
-  'Information Technology',
-  'Banking and Financial Services',
-  'Automobile',
-  'Manufacturing',
-  'Healthcare',
-  'Retail',
-  'E-commerce',
-  'Telecommunications',
-  'Hospitality',
-  'Logistics and Transportation',
-  'Construction and Infrastructure',
-  'Education',
-  'Energy',
-  'Government and Public Sector'
-] as const;
-
-export type CompanyIndustry = typeof COMPANY_INDUSTRIES[number];
-
-export interface VerifiedVacancy {
-  id: string;
-  title: string;
-  location: string;
-  experienceLevel: string;
-  category: string;
-  eligibility: string;
-  keySkills: string[];
-  officialApplyUrl: string;
-  verifiedDate: string;
-  isActivelyRecruiting: boolean;
-}
-
-export interface CompanyProfile {
-  id: string;
-  name: string;
-  logo: string;
-  industry: CompanyIndustry;
-  overview: string;
-  headquarters: string;
-  officialWebsite: string;
-  careersPortalUrl: string;
-  businessSectors: string[];
-  jobCategories: string[];
-  commonSkills: string[];
-  generalEligibility: string;
-  lastVerifiedDate: string;
-  isFeatured: boolean;
-  isActivelyHiring: boolean;
-  openVacanciesCount: number;
-  sampleVacancies: VerifiedVacancy[];
-}
-
-export interface SavedCompany {
-  id: string;
-  userId: string;
-  companyId: string;
-  companyName: string;
-  companyLogo: string;
-  industry: string;
-  savedAt?: any;
-}
-
 // ==================== TRUST, AADHAAR, DIGILOCKER & REPUTATION ====================
 export type TrustVerificationStatus =
   | 'Not Started'

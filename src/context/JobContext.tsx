@@ -30,8 +30,7 @@ import {
   SavedCandidate,
   Report,
   WorkerProfile,
-  HiringRequest,
-  SavedCompany
+  HiringRequest
 } from '../types';
 import { calculateDistance } from '../lib/geo';
 
@@ -42,7 +41,6 @@ interface JobContextType {
   employerApplications: Application[];
   savedJobIds: string[];
   savedCandidateIds: string[];
-  savedCompanyIds: string[];
   hiringRequests: HiringRequest[];
   notifications: Notification[];
   unreadNotificationCount: number;
@@ -67,7 +65,6 @@ interface JobContextType {
   updateApplicationStatus: (applicationId: string, newStatus: ApplicationStatus, interviewDetails?: InterviewDetails) => Promise<void>;
   toggleSaveJob: (jobId: string) => Promise<void>;
   toggleSaveCandidate: (workerId: string) => Promise<void>;
-  toggleSaveCompany: (companyId: string, companyName: string, companyLogo: string, industry: string) => Promise<void>;
   sendHiringRequest: (data: Omit<HiringRequest, 'id' | 'employerId' | 'employerName' | 'status' | 'createdAt' | 'updatedAt'>) => Promise<string>;
   updateHiringRequestStatus: (requestId: string, status: HiringRequest['status'], responseNote?: string) => Promise<void>;
   openConversation: (conv: Conversation) => void;
@@ -78,7 +75,6 @@ interface JobContextType {
   markNotificationAsRead: (notificationId: string) => Promise<void>;
   markAllNotificationsAsRead: () => Promise<void>;
   reportItem: (targetType: 'job' | 'user' | 'conversation', targetId: string, reason: string) => Promise<void>;
-  seedInitialJobsIfEmpty: () => Promise<void>;
 }
 
 const JobContext = createContext<JobContextType | undefined>(undefined);
@@ -92,7 +88,6 @@ export const JobProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [employerApplications, setEmployerApplications] = useState<Application[]>([]);
   const [savedJobIds, setSavedJobIds] = useState<string[]>([]);
   const [savedCandidateIds, setSavedCandidateIds] = useState<string[]>([]);
-  const [savedCompanyIds, setSavedCompanyIds] = useState<string[]>([]);
   const [hiringRequests, setHiringRequests] = useState<HiringRequest[]>([]);
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [conversations, setConversations] = useState<Conversation[]>([]);
@@ -110,7 +105,7 @@ export const JobProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [activeMessages, setActiveMessages] = useState<Message[]>([]);
   const [loadingJobs, setLoadingJobs] = useState<boolean>(true);
 
-  // 1. Subscribe to public active jobs
+  // 1. Subscribe to public active jobs (excluding any legacy demo seeded jobs)
   useEffect(() => {
     const jobsRef = collection(db, 'jobs');
     const q = query(jobsRef, where('status', '==', 'active'));
@@ -119,8 +114,12 @@ export const JobProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       q,
       (snapshot) => {
         const jobsList: Job[] = [];
-        snapshot.forEach((doc) => {
-          jobsList.push({ id: doc.id, ...(doc.data() as any) });
+        snapshot.forEach((docSnap) => {
+          const data = docSnap.data() as any;
+          if (typeof data?.employerId === 'string' && data.employerId.startsWith('system_emp_')) {
+            return;
+          }
+          jobsList.push({ id: docSnap.id, ...data });
         });
         setJobs(jobsList);
         setLoadingJobs(false);
@@ -747,213 +746,28 @@ export const JobProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     });
   };
 
-  // Seed initial realistic Indian jobs if the collection is empty
-  const seedInitialJobsIfEmpty = async () => {
-    try {
-      const snap = await getDocs(collection(db, 'jobs'));
-      if (snap.size > 0) return; // already populated
-
-      const seedJobs: Array<Omit<Job, 'id' | 'createdAt' | 'updatedAt'>> = [
-        {
-          employerId: 'system_emp_1',
-          employerName: 'Tata Power DDL & Projects',
-          employerLogo: 'https://images.unsplash.com/photo-1541888946425-d0fbb18f156d?w=120&auto=format&fit=crop&q=80',
-          isEmployerVerified: true,
-          title: 'Senior Electrician & Substation Technician',
-          category: 'Technical',
-          description: 'Looking for a certified ITI/Diploma electrician for commercial installations, wiring inspections, and industrial motor maintenance.',
-          responsibilities: 'Install conduit piping, test 3-phase circuits, diagnose electrical fault codes, and observe high-voltage safety standards.',
-          requiredSkills: ['Electrician', 'Wiring', 'Appliance repair', 'Safety audit'],
-          education: 'ITI',
-          experience: '1–3 years',
-          vacancies: 4,
-          minSalary: 22000,
-          maxSalary: 32000,
-          paymentFrequency: 'Per month',
-          employmentType: 'Full-time',
-          workingHours: '9:00 AM - 6:00 PM (Mon-Sat)',
-          state: 'Delhi',
-          district: 'North Delhi',
-          city: 'New Delhi',
-          area: 'Rohini Sector 10',
-          pincode: '110085',
-          lat: 28.7041,
-          lng: 77.1025,
-          benefits: ['PF & ESI', 'Overtime allowance', 'Yearly medical checkup', 'Free safety kit'],
-          deadline: '2026-12-15',
-          status: 'active',
-          applicationsCount: 3
-        },
-        {
-          employerId: 'system_emp_2',
-          employerName: 'Reliance Smart Superstore',
-          employerLogo: 'https://images.unsplash.com/photo-1578916171728-46686eac8d58?w=120&auto=format&fit=crop&q=80',
-          isEmployerVerified: true,
-          title: 'Retail Store Cashier & Customer Executive',
-          category: 'Retail',
-          description: 'Manage point-of-sale billing, assist retail shoppers, and ensure stock replenishment in our premier supermarket store.',
-          responsibilities: 'Billing via barcode scanners, cash management, stock audit at end-of-day, and assisting customers with product inquiries.',
-          requiredSkills: ['Sales', 'Cashier', 'Customer service', 'Billing'],
-          education: 'Higher secondary',
-          experience: 'Fresher',
-          vacancies: 6,
-          minSalary: 16000,
-          maxSalary: 22000,
-          paymentFrequency: 'Per month',
-          employmentType: 'Full-time',
-          workingHours: '8-hour rotational shifts',
-          state: 'Maharashtra',
-          district: 'Mumbai Suburban',
-          city: 'Mumbai',
-          area: 'Andheri West',
-          pincode: '400053',
-          lat: 19.1197,
-          lng: 72.8464,
-          benefits: ['ESI health card', 'Employee store discounts', 'Attendance bonus'],
-          deadline: '2026-11-30',
-          status: 'active',
-          applicationsCount: 5
-        },
-        {
-          employerId: 'system_emp_3',
-          employerName: 'Taj Gateway & Dining Services',
-          employerLogo: 'https://images.unsplash.com/photo-1555396273-367ea4eb4db5?w=120&auto=format&fit=crop&q=80',
-          isEmployerVerified: true,
-          title: 'Commercial Kitchen Assistant & Commis Cook',
-          category: 'Hospitality',
-          description: 'Assist Head Chef in preparing South Indian & North Indian lunch buffets, food hygiene standards, and kitchen prep.',
-          responsibilities: 'Vegetable cutting, marination, tandoor oversight, dishwashing supervision, and food temperature logging.',
-          requiredSkills: ['Cooking', 'Kitchen assistance', 'Housekeeping', 'Food presentation'],
-          education: 'Secondary',
-          experience: '1–3 years',
-          vacancies: 3,
-          minSalary: 18000,
-          maxSalary: 26000,
-          paymentFrequency: 'Per month',
-          employmentType: 'Full-time',
-          workingHours: '10:00 AM - 7:00 PM',
-          state: 'Karnataka',
-          district: 'Bengaluru Urban',
-          city: 'Bengaluru',
-          area: 'Indiranagar',
-          pincode: '560038',
-          lat: 12.9716,
-          lng: 77.5946,
-          benefits: ['Duty meals included', 'Health insurance', 'Tip sharing pool'],
-          deadline: '2026-12-20',
-          status: 'active',
-          applicationsCount: 2
-        },
-        {
-          employerId: 'system_emp_4',
-          employerName: 'Delhivery Supply Chain Hub',
-          employerLogo: 'https://images.unsplash.com/photo-1586528116311-ad8dd3c8310d?w=120&auto=format&fit=crop&q=80',
-          isEmployerVerified: true,
-          title: 'Fleet Delivery Driver & Route Coordinator',
-          category: 'Transport',
-          description: 'Handle intracity parcel dispatches, route optimization, vehicle checks, and customer signature handovers.',
-          responsibilities: 'Safe vehicle operation, tracking deliveries on mobile app, parcel scanning, and collection reconciliation.',
-          requiredSkills: ['Driving', 'Delivery', 'Logistics', 'Fleet coordination'],
-          education: 'Secondary',
-          experience: '1–3 years',
-          vacancies: 10,
-          minSalary: 20000,
-          maxSalary: 28000,
-          paymentFrequency: 'Per month',
-          employmentType: 'Full-time',
-          workingHours: '8:00 AM - 5:00 PM',
-          state: 'Maharashtra',
-          district: 'Pune',
-          city: 'Pune',
-          area: 'Hinjawadi Phase 1',
-          pincode: '411057',
-          lat: 18.5204,
-          lng: 73.8567,
-          benefits: ['Fuel allowance', 'Mobile phone reimbursement', 'Accident insurance'],
-          deadline: '2026-12-10',
-          status: 'active',
-          applicationsCount: 4
-        },
-        {
-          employerId: 'system_emp_5',
-          employerName: 'FinAdvisors Accounting Services',
-          employerLogo: 'https://images.unsplash.com/photo-1454165804606-c3d57bc86b40?w=120&auto=format&fit=crop&q=80',
-          isEmployerVerified: true,
-          title: 'Tally Accountant & Data Entry Operator',
-          category: 'Office',
-          description: 'Record invoices, reconcile bank statements on Tally Prime, and prepare GST monthly return summaries.',
-          responsibilities: 'GST invoice generation, vendor payments tracking, petty cash maintenance, and document filing.',
-          requiredSkills: ['Accounting', 'Data entry', 'Tally', 'Administration'],
-          education: 'Graduate',
-          experience: '1–3 years',
-          vacancies: 2,
-          minSalary: 24000,
-          maxSalary: 35000,
-          paymentFrequency: 'Per month',
-          employmentType: 'Full-time',
-          workingHours: '9:30 AM - 6:30 PM (Mon-Fri)',
-          state: 'Gujarat',
-          district: 'Ahmedabad',
-          city: 'Ahmedabad',
-          area: 'Navrangpura',
-          pincode: '380009',
-          lat: 23.0225,
-          lng: 72.5714,
-          benefits: ['Performance bonus', 'Paid annual leaves', 'Tea & snacks'],
-          deadline: '2026-12-05',
-          status: 'active',
-          applicationsCount: 1
-        },
-        {
-          employerId: 'system_emp_6',
-          employerName: 'Creative Pixel Digital Media',
-          employerLogo: 'https://images.unsplash.com/photo-1572044162444-ad60f128bdea?w=120&auto=format&fit=crop&q=80',
-          isEmployerVerified: true,
-          title: 'Social Media Graphic Designer & Video Editor',
-          category: 'Digital',
-          description: 'Design promotional banners, YouTube thumbnails, and short reels for e-commerce and local business clients.',
-          responsibilities: 'Create Photoshop/Canva layouts, cut 9:16 short form videos in Premiere/CapCut, and adapt brand kits.',
-          requiredSkills: ['Graphic design', 'Video editing', 'Social media handling', 'Content writing'],
-          education: 'Diploma',
-          experience: 'Fresher',
-          vacancies: 2,
-          minSalary: 18000,
-          maxSalary: 28000,
-          paymentFrequency: 'Per month',
-          employmentType: 'Full-time',
-          workingHours: 'Flexible (Deliverables based)',
-          state: 'Rajasthan',
-          district: 'Jaipur',
-          city: 'Jaipur',
-          area: 'Malviya Nagar',
-          pincode: '302017',
-          lat: 26.9124,
-          lng: 75.7873,
-          benefits: ['Work from home', 'Internet allowance', 'Flexible hours'],
-          deadline: '2026-12-31',
-          status: 'active',
-          applicationsCount: 7
-        }
-      ];
-
-      for (const item of seedJobs) {
-        const jRef = doc(collection(db, 'jobs'));
-        await setDoc(jRef, {
-          ...item,
-          id: jRef.id,
-          createdAt: serverTimestamp(),
-          updatedAt: serverTimestamp()
-        });
-      }
-      console.log('Seeded realistic initial jobs successfully.');
-    } catch (e) {
-      console.warn('Job seed notice:', e);
-    }
-  };
-
+  // Clean up any legacy demo seeded jobs if signed in as admin
   useEffect(() => {
-    seedInitialJobsIfEmpty();
-  }, []);
+    if (!currentUser || currentUser.email !== 'sjtutorai@gmail.com' || !currentUser.emailVerified) {
+      return;
+    }
+
+    const cleanupLegacyDemoJobs = async () => {
+      try {
+        const snap = await getDocs(collection(db, 'jobs'));
+        for (const docSnap of snap.docs) {
+          const data = docSnap.data() as any;
+          if (typeof data?.employerId === 'string' && data.employerId.startsWith('system_emp_')) {
+            await deleteDoc(docSnap.ref);
+          }
+        }
+      } catch (err) {
+        handleFirestoreError(err, OperationType.DELETE, 'jobs');
+      }
+    };
+
+    cleanupLegacyDemoJobs();
+  }, [currentUser]);
 
   // 9. Subscribe to hiring requests
   useEffect(() => {
@@ -981,31 +795,6 @@ export const JobProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
     return () => unsubscribe();
   }, [currentUser, employerProfile]);
-
-  // 10. Subscribe to saved companies
-  useEffect(() => {
-    if (!currentUser) {
-      setSavedCompanyIds([]);
-      return;
-    }
-
-    const scRef = collection(db, 'saved_companies');
-    const q = query(scRef, where('userId', '==', currentUser.uid));
-
-    const unsubscribe = onSnapshot(
-      q,
-      (snapshot) => {
-        const ids: string[] = [];
-        snapshot.forEach((doc) => {
-          ids.push(doc.data().companyId);
-        });
-        setSavedCompanyIds(ids);
-      },
-      (err) => console.warn('Saved companies snapshot error:', err)
-    );
-
-    return () => unsubscribe();
-  }, [currentUser]);
 
   // Hiring Request Operations
   const sendHiringRequest = async (
@@ -1059,36 +848,6 @@ export const JobProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     });
   };
 
-  // Saved Companies Operations
-  const toggleSaveCompany = async (
-    companyId: string,
-    companyName: string,
-    companyLogo: string,
-    industry: string
-  ): Promise<void> => {
-    if (!currentUser) throw new Error('Authentication required');
-    const scRef = collection(db, 'saved_companies');
-    const q = query(scRef, where('userId', '==', currentUser.uid), where('companyId', '==', companyId));
-    const snap = await getDocs(q);
-
-    if (!snap.empty) {
-      for (const d of snap.docs) {
-        await deleteDoc(d.ref);
-      }
-      setSavedCompanyIds((prev) => prev.filter((id) => id !== companyId));
-    } else {
-      await addDoc(scRef, {
-        userId: currentUser.uid,
-        companyId,
-        companyName,
-        companyLogo,
-        industry,
-        savedAt: serverTimestamp()
-      });
-      setSavedCompanyIds((prev) => [...prev, companyId]);
-    }
-  };
-
   const unreadNotificationCount = notifications.filter(n => !n.read).length;
 
   return (
@@ -1100,7 +859,6 @@ export const JobProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         employerApplications,
         savedJobIds,
         savedCandidateIds,
-        savedCompanyIds,
         hiringRequests,
         notifications,
         unreadNotificationCount,
@@ -1119,7 +877,6 @@ export const JobProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         updateApplicationStatus,
         toggleSaveJob,
         toggleSaveCandidate,
-        toggleSaveCompany,
         sendHiringRequest,
         updateHiringRequestStatus,
         openConversation,
@@ -1129,8 +886,7 @@ export const JobProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         uploadWorkerResume,
         markNotificationAsRead,
         markAllNotificationsAsRead,
-        reportItem,
-        seedInitialJobsIfEmpty
+        reportItem
       }}
     >
       {children}
