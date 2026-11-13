@@ -62,6 +62,7 @@ import {
   APP_LOGO_URL
 } from '../../types';
 import { LocationPicker } from '../common/LocationPicker';
+import { compressImageFile } from '../../lib/imageCompression';
 import {
   AnimatedImage,
   WordStagger,
@@ -522,19 +523,21 @@ export const WorkerOnboarding: React.FC<WorkerOnboardingProps> = ({
   };
 
   // ==================== CAMERA & FILE UPLOAD HANDLERS ====================
-  const handlePhotoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handlePhotoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    if (file.size > 3 * 1024 * 1024) {
-      setErrorMsg('Profile photograph must be less than 3MB.');
+    if (file.size > 5 * 1024 * 1024) {
+      setErrorMsg('Profile photograph must be less than 5MB.');
       return;
     }
-    const reader = new FileReader();
-    reader.onloadend = () => {
-      setProfilePhoto(reader.result as string);
+    try {
+      const compressed = await compressImageFile(file, 640, 0.72);
+      setProfilePhoto(compressed);
+      setIsPhotoVerifiedReal(true);
       setErrorMsg(null);
-    };
-    reader.readAsDataURL(file);
+    } catch {
+      setErrorMsg('Failed to process the photograph. Please try another image.');
+    }
   };
 
   const startLiveCamera = async () => {
@@ -561,12 +564,12 @@ export const WorkerOnboarding: React.FC<WorkerOnboardingProps> = ({
   const captureCameraFrame = () => {
     if (!videoRef.current) return;
     const canvas = document.createElement('canvas');
-    canvas.width = videoRef.current.videoWidth || 480;
-    canvas.height = videoRef.current.videoHeight || 480;
+    canvas.width = 480;
+    canvas.height = 480;
     const ctx = canvas.getContext('2d');
     if (ctx) {
       ctx.drawImage(videoRef.current, 0, 0, canvas.width, canvas.height);
-      const dataUrl = canvas.toDataURL('image/jpeg', 0.85);
+      const dataUrl = canvas.toDataURL('image/jpeg', 0.72);
       setProfilePhoto(dataUrl);
       setIsPhotoVerifiedReal(true);
     }
@@ -581,55 +584,79 @@ export const WorkerOnboarding: React.FC<WorkerOnboardingProps> = ({
     setCameraActive(false);
   };
 
-  const handleCertificateUpload = (
+  const handleCertificateUpload = async (
     e: React.ChangeEvent<HTMLInputElement>,
     target: 'education' | 'skill'
   ) => {
     const files = e.target.files;
     if (!files || files.length === 0) return;
 
-    Array.from(files).forEach((file) => {
-      if (file.size > 3 * 1024 * 1024) {
-        setErrorMsg('Each certificate file must be under 3MB.');
-        return;
-      }
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        const attachment: CertificateAttachment = {
-          name: file.name,
-          url: reader.result as string,
-          uploadedAt: new Date().toLocaleDateString('en-IN')
-        };
-        if (target === 'education') {
-          setEducationCertificates((prev) => [...prev, attachment]);
-        } else {
-          setSkillCertificates((prev) => [...prev, attachment]);
+    for (const file of Array.from(files)) {
+      if (file.type.startsWith('image/')) {
+        if (file.size > 5 * 1024 * 1024) {
+          setErrorMsg('Each certificate image must be under 5MB.');
+          continue;
         }
-      };
-      reader.readAsDataURL(file);
-    });
+        try {
+          const compressedUrl = await compressImageFile(file, 900, 0.68);
+          const attachment: CertificateAttachment = {
+            name: file.name,
+            url: compressedUrl,
+            uploadedAt: new Date().toLocaleDateString('en-IN')
+          };
+          if (target === 'education') {
+            setEducationCertificates((prev) => [...prev, attachment]);
+          } else {
+            setSkillCertificates((prev) => [...prev, attachment]);
+          }
+          setErrorMsg(null);
+        } catch {
+          setErrorMsg('Failed to process certificate image.');
+        }
+      } else {
+        if (file.size > 550 * 1024) {
+          setErrorMsg('PDF certificate files must be under 550KB for cloud sync.');
+          continue;
+        }
+        const reader = new FileReader();
+        reader.onloadend = () => {
+          const attachment: CertificateAttachment = {
+            name: file.name,
+            url: reader.result as string,
+            uploadedAt: new Date().toLocaleDateString('en-IN')
+          };
+          if (target === 'education') {
+            setEducationCertificates((prev) => [...prev, attachment]);
+          } else {
+            setSkillCertificates((prev) => [...prev, attachment]);
+          }
+        };
+        reader.readAsDataURL(file);
+      }
+    }
   };
 
-  const handlePortfolioImagesUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handlePortfolioImagesUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
     if (!files || files.length === 0) return;
-    Array.from(files).forEach((file) => {
-      if (file.size > 3 * 1024 * 1024) return;
-      const reader = new FileReader();
-      reader.onloadend = () => {
+    for (const file of Array.from(files)) {
+      if (file.size > 5 * 1024 * 1024) continue;
+      try {
+        const compressedUrl = await compressImageFile(file, 850, 0.68);
         setWorkPortfolioImages((prev) =>
-          prev.length < 4 ? [...prev, reader.result as string] : prev
+          prev.length < 4 ? [...prev, compressedUrl] : prev
         );
-      };
-      reader.readAsDataURL(file);
-    });
+      } catch {
+        // ignore single file failure
+      }
+    }
   };
 
   const handleResumeFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    if (file.size > 4 * 1024 * 1024) {
-      setErrorMsg('Resume file must be under 4MB.');
+    if (file.size > 650 * 1024) {
+      setErrorMsg('Resume file must be under 650KB for reliable profile cloud sync.');
       return;
     }
     const reader = new FileReader();

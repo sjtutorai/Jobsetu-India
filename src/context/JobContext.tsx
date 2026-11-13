@@ -493,13 +493,20 @@ export const JobProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   const uploadWorkerResume = async (resumeUrl: string, resumeName: string) => {
     if (!currentUser) return;
-    const wRef = doc(db, 'workerProfiles', currentUser.uid);
-    await updateDoc(wRef, {
+    const payload = {
+      uid: currentUser.uid,
       resumeUrl,
       resumeName,
       updatedAt: serverTimestamp()
-    }).catch(err => {
-      handleFirestoreError(err, OperationType.UPDATE, `workerProfiles/${currentUser.uid}`);
+    };
+    await Promise.allSettled([
+      setDoc(doc(db, 'workerProfiles', currentUser.uid), payload, { merge: true }),
+      setDoc(doc(db, 'jobSeekers', currentUser.uid), payload, { merge: true })
+    ]).then((results) => {
+      const rejected = results.find((r): r is PromiseRejectedResult => r.status === 'rejected');
+      if (rejected) {
+        handleFirestoreError(rejected.reason, OperationType.UPDATE, `workerProfiles/${currentUser.uid}`);
+      }
     });
   };
 

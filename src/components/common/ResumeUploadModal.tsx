@@ -30,9 +30,9 @@ export const ResumeUploadModal: React.FC<ResumeUploadModalProps> = ({
     const selected = e.target.files?.[0];
     if (!selected) return;
 
-    // Check size limit (max 3MB for base64 storage)
-    if (selected.size > 3 * 1024 * 1024) {
-      setErrorMsg('File size must be under 3 MB.');
+    // Check size limit (max 650KB for reliable Firestore base64 storage)
+    if (selected.size > 650 * 1024) {
+      setErrorMsg('File size must be under 650 KB for fast verification & cloud saving.');
       return;
     }
 
@@ -92,7 +92,7 @@ export const ResumeUploadModal: React.FC<ResumeUploadModalProps> = ({
             </div>
             <div>
               <h3 className="text-base font-bold text-gray-900">Upload Resume / CV</h3>
-              <p className="text-xs text-gray-500">Supported formats: PDF, DOCX (Max 3MB)</p>
+              <p className="text-xs text-gray-500">Supported formats: PDF, DOCX (Max 650KB)</p>
             </div>
           </div>
           <button

@@ -310,13 +310,17 @@ function MainApp() {
     }
   };
 
-  // Synchronize on mount and browser back/forward buttons
+  // Synchronize on mount, auth changes, and browser back/forward buttons
   useEffect(() => {
     const handleLocationChange = () => {
+      // Wait for AuthContext to finish initial session & Firestore profile fetch before redirecting
+      if (loading) return;
+
       const path = window.location.pathname;
 
       if (path === '/signin') {
         if (currentUser) {
+          setAuthModalOpen(false);
           const role = userProfile?.activeRole || intendedRole || 'worker';
           navigateTo(
             role === 'worker' ? '/jobfinder' : '/findemployee',
@@ -334,6 +338,7 @@ function MainApp() {
 
       if (path === '/signup') {
         if (currentUser) {
+          setAuthModalOpen(false);
           const role = userProfile?.activeRole || intendedRole || 'worker';
           navigateTo(
             role === 'worker' ? '/jobfinder' : '/findemployee',
@@ -382,6 +387,7 @@ function MainApp() {
       if (path === '/worker-onboarding') {
         setIntendedRole('worker');
         if (currentUser) {
+          setAuthModalOpen(false);
           setView('worker-onboarding');
         } else {
           setView('home');
@@ -393,6 +399,7 @@ function MainApp() {
       if (path === '/employer-onboarding') {
         setIntendedRole('employer');
         if (currentUser) {
+          setAuthModalOpen(false);
           setView('employer-onboarding');
         } else {
           setView('home');
@@ -403,13 +410,16 @@ function MainApp() {
 
       if (path === '/jobfinder' || path.startsWith('/jobfinder/')) {
         if (currentUser) {
+          setAuthModalOpen(false);
           // Respect user's saved role if they haven't explicitly enabled worker role
           if (userProfile && userProfile.activeRole === 'employer' && !userProfile.enabledRoles?.includes('worker')) {
             navigateTo('/findemployee', 'dashboard', 'employer');
             return;
           }
-          setIntendedRole('worker');
-          switchActiveRole('worker').catch(() => {});
+          if (intendedRole !== 'worker') setIntendedRole('worker');
+          if (userProfile && userProfile.activeRole !== 'worker' && userProfile.enabledRoles?.includes('worker')) {
+            switchActiveRole('worker').catch(() => {});
+          }
           setView('dashboard');
         } else {
           setIntendedRole('worker');
@@ -420,12 +430,15 @@ function MainApp() {
         }
       } else if (path === '/findemployee' || path.startsWith('/findemployee/')) {
         if (currentUser) {
+          setAuthModalOpen(false);
           if (userProfile && userProfile.activeRole === 'worker' && !userProfile.enabledRoles?.includes('employer')) {
             navigateTo('/jobfinder', 'dashboard', 'worker');
             return;
           }
-          setIntendedRole('employer');
-          switchActiveRole('employer').catch(() => {});
+          if (intendedRole !== 'employer') setIntendedRole('employer');
+          if (userProfile && userProfile.activeRole !== 'employer' && userProfile.enabledRoles?.includes('employer')) {
+            switchActiveRole('employer').catch(() => {});
+          }
           setView('dashboard');
         } else {
           setIntendedRole('employer');
@@ -438,6 +451,7 @@ function MainApp() {
         setView('admin');
       } else if (path === '/' || path === '') {
         if (currentUser) {
+          setAuthModalOpen(false);
           const role = userProfile?.activeRole || intendedRole || 'worker';
           navigateTo(
             role === 'worker' ? '/jobfinder' : '/findemployee',
@@ -453,7 +467,7 @@ function MainApp() {
     handleLocationChange();
     window.addEventListener('popstate', handleLocationChange);
     return () => window.removeEventListener('popstate', handleLocationChange);
-  }, [currentUser, userProfile, workerProfile, employerProfile, intendedRole]);
+  }, [loading, currentUser, userProfile, workerProfile, employerProfile, intendedRole]);
 
   const handleSelectRoleFromHome = (role: UserRole) => {
     setIntendedRole(role);
@@ -478,7 +492,7 @@ function MainApp() {
   };
 
   const handleAuthSuccess = (selectedRole: UserRole, isNewSignup?: boolean) => {
-    const resolvedRole = userProfile?.activeRole || selectedRole;
+    const resolvedRole = selectedRole || userProfile?.activeRole || 'worker';
     if (isNewSignup) {
       addToast(
         'success',
