@@ -10,9 +10,22 @@ import { NotificationCenter } from '../notifications/NotificationCenter';
 import { JobCard } from '../jobs/JobCard';
 import { JobDetailModal } from '../jobs/JobDetailModal';
 import { ResumeUploadModal } from '../common/ResumeUploadModal';
+import { ChangeLocationModal } from '../common/ChangeLocationModal';
 import { SlideSidebar } from '../navigation/SlideSidebar';
 import { SettingsView } from '../common/SettingsView';
-import { Job, UserRole } from '../../types';
+import {
+  Job,
+  UserRole,
+  Gender,
+  EducationLevel,
+  ExperienceLevel,
+  SearchRadiusKm,
+  EDUCATION_LEVELS,
+  EXPERIENCE_LEVELS,
+  JOB_SEEKER_PROFESSIONS,
+  INDIAN_STATES_AND_UTS,
+  INDIAN_LANGUAGES
+} from '../../types';
 import { calculateDistance } from '../../lib/geo';
 import { calculateJobMatch } from '../../lib/smartMatch';
 import {
@@ -38,7 +51,10 @@ import {
   Edit3,
   Menu,
   Lock,
-  PhoneCall
+  PhoneCall,
+  Save,
+  X,
+  Compass
 } from 'lucide-react';
 
 import { JobsNearMeView } from '../location/JobsNearMeView';
@@ -123,7 +139,7 @@ export const WorkerDashboard: React.FC<WorkerDashboardProps> = ({
   onSwitchRole,
   onOpenAIAssistant
 }) => {
-  const { currentUser, userProfile, workerProfile, logout } = useAuth();
+  const { currentUser, userProfile, workerProfile, saveDraftWorkerProfile, logout } = useAuth();
   const { myEmploymentRecords } = useAttendance();
   const {
     jobs,
@@ -145,8 +161,127 @@ export const WorkerDashboard: React.FC<WorkerDashboardProps> = ({
   );
   const [selectedJob, setSelectedJob] = useState<Job | null>(null);
   const [resumeModalOpen, setResumeModalOpen] = useState(false);
+  const [changeLocationOpen, setChangeLocationOpen] = useState(false);
+  const [locationUpdateNotice, setLocationUpdateNotice] = useState('');
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isCollapsedDesktop, setIsCollapsedDesktop] = useState(false);
+
+  // Instant Quick Edit State for My Profile
+  const [isQuickEditing, setIsQuickEditing] = useState(false);
+  const [isSavingQuickProfile, setIsSavingQuickProfile] = useState(false);
+  const [quickSaveNotice, setQuickSaveNotice] = useState('');
+  const [quickForm, setQuickForm] = useState({
+    fullName: '',
+    phone: '',
+    email: '',
+    dateOfBirth: '',
+    gender: 'male' as Gender,
+    preferredLanguage: 'Hindi (हिन्दी)',
+    primaryProfession: 'Electrician',
+    skillsText: '',
+    experience: '1–3 years' as ExperienceLevel,
+    previousJobRole: '',
+    education: 'Secondary' as EducationLevel,
+    schoolOrCollegeName: '',
+    expectedSalary: '₹18,000/month',
+    expectedDailyWage: '₹700/day',
+    preferredSearchRadiusKm: 50 as SearchRadiusKm,
+    state: '',
+    district: '',
+    city: '',
+    pincode: '',
+    currentAddress: ''
+  });
+
+  useEffect(() => {
+    const allSkills = Array.from(
+      new Set([...(workerProfile?.skills || []), ...(workerProfile?.customSkills || [])])
+    );
+    setQuickForm({
+      fullName: workerProfile?.fullName || userProfile?.name || currentUser?.displayName || '',
+      phone:
+        (workerProfile?.phone && workerProfile.phone.trim() !== '+91' ? workerProfile.phone : '') ||
+        (userProfile?.phone && userProfile.phone.trim() !== '+91' ? userProfile.phone : '') ||
+        currentUser?.phoneNumber ||
+        '',
+      email: workerProfile?.email || userProfile?.email || currentUser?.email || '',
+      dateOfBirth: workerProfile?.dateOfBirth || '',
+      gender: (workerProfile?.gender || 'male') as Gender,
+      preferredLanguage: workerProfile?.preferredLanguage || 'Hindi (हिन्दी)',
+      primaryProfession:
+        workerProfile?.selectedProfessions?.[0] || allSkills[0] || 'Electrician',
+      skillsText: allSkills.join(', '),
+      experience: (workerProfile?.experience || '1–3 years') as ExperienceLevel,
+      previousJobRole: workerProfile?.previousJobRole || '',
+      education: (workerProfile?.education || 'Secondary') as EducationLevel,
+      schoolOrCollegeName: workerProfile?.schoolOrCollegeName || '',
+      expectedSalary: workerProfile?.jobPreferences?.expectedSalary || '₹18,000/month',
+      expectedDailyWage: workerProfile?.jobPreferences?.expectedDailyWage || '₹700/day',
+      preferredSearchRadiusKm: (workerProfile?.jobPreferences?.preferredSearchRadiusKm ||
+        50) as SearchRadiusKm,
+      state: workerProfile?.state || '',
+      district: workerProfile?.district || '',
+      city: workerProfile?.city || '',
+      pincode: workerProfile?.pincode || '',
+      currentAddress: workerProfile?.currentAddress || ''
+    });
+  }, [workerProfile, userProfile, currentUser]);
+
+  const handleSaveQuickProfile = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsSavingQuickProfile(true);
+    setQuickSaveNotice('');
+    try {
+      const parsedSkills = quickForm.skillsText
+        .split(',')
+        .map((s) => s.trim())
+        .filter(Boolean);
+      const selectedProfessions = quickForm.primaryProfession
+        ? [quickForm.primaryProfession]
+        : workerProfile?.selectedProfessions || [];
+      await saveDraftWorkerProfile({
+        fullName: quickForm.fullName.trim() || userProfile?.name || 'Job Seeker',
+        phone: quickForm.phone.trim(),
+        email: quickForm.email.trim(),
+        dateOfBirth: quickForm.dateOfBirth,
+        gender: quickForm.gender,
+        preferredLanguage: quickForm.preferredLanguage,
+        selectedProfessions,
+        skills: parsedSkills.length > 0 ? parsedSkills : selectedProfessions,
+        experience: quickForm.experience,
+        previousJobRole: quickForm.previousJobRole.trim(),
+        education: quickForm.education,
+        schoolOrCollegeName: quickForm.schoolOrCollegeName.trim(),
+        state: quickForm.state.trim(),
+        district: quickForm.district.trim(),
+        city: quickForm.city.trim(),
+        pincode: quickForm.pincode.trim(),
+        currentAddress: quickForm.currentAddress.trim(),
+        jobPreferences: {
+          jobTypes: workerProfile?.jobPreferences?.jobTypes || ['Full-Time'],
+          expectedSalary: quickForm.expectedSalary.trim() || '₹18,000/month',
+          expectedDailyWage: quickForm.expectedDailyWage.trim() || '₹700/day',
+          preferredSearchRadiusKm: quickForm.preferredSearchRadiusKm,
+          availability: workerProfile?.jobPreferences?.availability || 'Immediate',
+          preferredLocations:
+            workerProfile?.jobPreferences?.preferredLocations?.length
+              ? workerProfile.jobPreferences.preferredLocations
+              : quickForm.city.trim()
+                ? [quickForm.city.trim()]
+                : [],
+          preferredWorkingHours: workerProfile?.jobPreferences?.preferredWorkingHours || '8 Hours (Day Shift)',
+          willingToRelocate: workerProfile?.jobPreferences?.willingToRelocate ?? true,
+          accommodationRequired: workerProfile?.jobPreferences?.accommodationRequired ?? false
+        }
+      });
+      setIsQuickEditing(false);
+      setQuickSaveNotice('Your profile changes have been saved and synced across all devices!');
+    } catch (err: any) {
+      setQuickSaveNotice(err?.message || 'Could not save quick changes. Please try again.');
+    } finally {
+      setIsSavingQuickProfile(false);
+    }
+  };
 
   const setActiveTab = (tab: WorkerTab) => {
     setActiveTabState(tab);
@@ -443,6 +578,14 @@ export const WorkerDashboard: React.FC<WorkerDashboardProps> = ({
                   </RippleContainer>
                   <button
                     type="button"
+                    onClick={() => setChangeLocationOpen(true)}
+                    className="py-2.5 px-4 rounded-2xl bg-white/15 hover:bg-white/25 text-white font-bold text-xs backdrop-blur-xs transition-all flex items-center gap-1.5 cursor-pointer"
+                  >
+                    <Compass className="w-3.5 h-3.5 text-amber-300" />
+                    <span>Change City</span>
+                  </button>
+                  <button
+                    type="button"
                     onClick={onEditProfile}
                     className="py-2.5 px-4 rounded-2xl bg-white/15 hover:bg-white/25 text-white font-bold text-xs backdrop-blur-xs transition-all flex items-center gap-1.5 cursor-pointer"
                   >
@@ -485,19 +628,45 @@ export const WorkerDashboard: React.FC<WorkerDashboardProps> = ({
                     Basic Profile Information &bull; {profileCompletionPercent}% Profile Completed
                   </h2>
                 </div>
-                <button
-                  type="button"
-                  onClick={onEditProfile}
-                  className="px-5 py-2.5 rounded-xl bg-[#2563EB] hover:bg-blue-700 text-white font-bold text-xs shadow-sm transition-all flex items-center gap-2 cursor-pointer self-start sm:self-auto"
-                >
-                  <Edit3 className="w-3.5 h-3.5" />
-                  <span>
-                    {profileCompletionPercent < 100
-                      ? 'Complete Your 100% Profile Now'
-                      : 'Update Profile Details'}
-                  </span>
-                </button>
+                <div className="flex flex-wrap items-center gap-2 self-start sm:self-auto">
+                  <button
+                    type="button"
+                    onClick={() => setChangeLocationOpen(true)}
+                    className="px-4 py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-800 font-bold text-xs transition-all flex items-center gap-1.5 cursor-pointer"
+                  >
+                    <Compass className="w-3.5 h-3.5 text-[#2563EB]" />
+                    <span>Shifted City? Change Location</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={onEditProfile}
+                    className="px-5 py-2.5 rounded-xl bg-[#2563EB] hover:bg-blue-700 text-white font-bold text-xs shadow-sm transition-all flex items-center gap-2 cursor-pointer"
+                  >
+                    <Edit3 className="w-3.5 h-3.5" />
+                    <span>
+                      {profileCompletionPercent < 100
+                        ? 'Complete Your 100% Profile Now'
+                        : 'Update Profile Details'}
+                    </span>
+                  </button>
+                </div>
               </div>
+
+              {locationUpdateNotice && (
+                <div className="p-3.5 rounded-2xl bg-emerald-50 border border-emerald-200 text-emerald-900 text-xs font-bold flex items-center justify-between gap-2">
+                  <span className="flex items-center gap-2">
+                    <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+                    {locationUpdateNotice}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => setLocationUpdateNotice('')}
+                    className="text-emerald-700 hover:underline cursor-pointer"
+                  >
+                    Dismiss
+                  </button>
+                </div>
+              )}
 
               {/* Basic Details Grid (Name, Email, Phone Number, Location & Skills) */}
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -927,12 +1096,44 @@ export const WorkerDashboard: React.FC<WorkerDashboardProps> = ({
 
         {/* TAB 6: MY PROFILE */}
         {activeTab === 'profile' && (
-          <div className="bg-white rounded-3xl p-8 shadow-xs border border-gray-200 animate-in fade-in space-y-6">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-6 border-b border-gray-100">
+          <div className="bg-white rounded-3xl p-6 sm:p-8 shadow-xs border border-gray-200 animate-in fade-in space-y-6">
+            {quickSaveNotice && (
+              <div className="p-4 rounded-2xl bg-emerald-50 border border-emerald-200 text-emerald-900 text-xs font-bold flex items-center justify-between">
+                <span className="flex items-center gap-2">
+                  <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+                  {quickSaveNotice}
+                </span>
+                <button
+                  type="button"
+                  onClick={() => setQuickSaveNotice('')}
+                  className="text-emerald-700 hover:underline cursor-pointer"
+                >
+                  Dismiss
+                </button>
+              </div>
+            )}
+
+            {locationUpdateNotice && (
+              <div className="p-4 rounded-2xl bg-blue-50 border border-blue-200 text-blue-900 text-xs font-bold flex items-center justify-between">
+                <span className="flex items-center gap-2">
+                  <MapPin className="w-4 h-4 text-[#2563EB] shrink-0" />
+                  {locationUpdateNotice}
+                </span>
+                <button
+                  type="button"
+                  onClick={() => setLocationUpdateNotice('')}
+                  className="text-blue-700 hover:underline cursor-pointer"
+                >
+                  Dismiss
+                </button>
+              </div>
+            )}
+
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-6 border-b border-gray-100">
               <div className="flex items-center gap-5">
-                {workerProfile?.profilePhoto ? (
+                {workerProfile?.profilePhoto || userProfile?.profilePhoto ? (
                   <img
-                    src={workerProfile.profilePhoto}
+                    src={workerProfile?.profilePhoto || userProfile?.profilePhoto}
                     alt={displayFullName}
                     className="w-20 h-20 rounded-2xl object-cover border-2 border-[#2563EB] shadow-md"
                   />
@@ -957,15 +1158,227 @@ export const WorkerDashboard: React.FC<WorkerDashboardProps> = ({
                 </div>
               </div>
 
-              <button
-                type="button"
-                onClick={onEditProfile}
-                className="px-5 py-2.5 rounded-2xl bg-[#2563EB] hover:bg-blue-700 text-white font-bold text-xs shadow-md transition-all flex items-center gap-2 cursor-pointer self-start sm:self-auto"
-              >
-                <Edit3 className="w-4 h-4" />
-                <span>{profileCompletionPercent < 100 ? 'Complete 100% Profile' : 'Edit Full Profile'}</span>
-              </button>
+              <div className="flex flex-wrap items-center gap-2.5 self-start md:self-auto">
+                <button
+                  type="button"
+                  onClick={() => setChangeLocationOpen(true)}
+                  className="px-4 py-2.5 rounded-2xl bg-amber-50 hover:bg-amber-100 text-amber-900 border border-amber-200 font-bold text-xs transition-all flex items-center gap-1.5 cursor-pointer"
+                >
+                  <Compass className="w-4 h-4 text-amber-600" />
+                  <span>Change City</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setIsQuickEditing(!isQuickEditing)}
+                  className="px-4 py-2.5 rounded-2xl bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs transition-all flex items-center gap-2 cursor-pointer"
+                >
+                  {isQuickEditing ? <X className="w-4 h-4" /> : <Edit3 className="w-4 h-4 text-amber-400" />}
+                  <span>{isQuickEditing ? 'Close Quick Edit' : 'Quick Edit Here'}</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={onEditProfile}
+                  className="px-5 py-2.5 rounded-2xl bg-[#2563EB] hover:bg-blue-700 text-white font-bold text-xs shadow-md transition-all flex items-center gap-2 cursor-pointer"
+                >
+                  <Sparkles className="w-4 h-4" />
+                  <span>{profileCompletionPercent < 100 ? 'Complete 100% Profile' : 'Edit Full 7-Step Wizard'}</span>
+                </button>
+              </div>
             </div>
+
+            {/* INLINE QUICK EDIT PROFILE FORM */}
+            {isQuickEditing && (
+              <form
+                onSubmit={handleSaveQuickProfile}
+                className="p-6 rounded-2xl bg-blue-50/60 border-2 border-blue-200 space-y-5 animate-in fade-in"
+              >
+                <div className="flex flex-wrap items-center justify-between gap-3 border-b border-blue-200/80 pb-3">
+                  <div>
+                    <h3 className="text-sm font-black text-gray-900">
+                      Instant Job Seeker Profile Editor
+                    </h3>
+                    <p className="text-[11px] text-gray-600">
+                      Update your personal details, skills, education, salary expectation & city right here.
+                    </p>
+                  </div>
+                  <button
+                    type="submit"
+                    disabled={isSavingQuickProfile}
+                    className="px-5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs flex items-center gap-1.5 cursor-pointer shadow-xs"
+                  >
+                    <Save className="w-3.5 h-3.5" />
+                    <span>{isSavingQuickProfile ? 'Saving...' : 'Save Changes Now'}</span>
+                  </button>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                  <div>
+                    <label className="text-[11px] font-bold text-gray-700 block mb-1">Full Name</label>
+                    <input
+                      type="text"
+                      value={quickForm.fullName}
+                      onChange={(e) => setQuickForm({ ...quickForm, fullName: e.target.value })}
+                      className="w-full px-3.5 py-2 rounded-xl bg-white border border-gray-200 text-xs font-semibold"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-[11px] font-bold text-gray-700 block mb-1">Mobile Number</label>
+                    <input
+                      type="text"
+                      value={quickForm.phone}
+                      onChange={(e) => setQuickForm({ ...quickForm, phone: e.target.value })}
+                      placeholder="+91 9876543210"
+                      className="w-full px-3.5 py-2 rounded-xl bg-white border border-gray-200 text-xs font-semibold"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-[11px] font-bold text-gray-700 block mb-1">Email Address</label>
+                    <input
+                      type="email"
+                      value={quickForm.email}
+                      onChange={(e) => setQuickForm({ ...quickForm, email: e.target.value })}
+                      className="w-full px-3.5 py-2 rounded-xl bg-white border border-gray-200 text-xs font-semibold"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-[11px] font-bold text-gray-700 block mb-1">Primary Profession</label>
+                    <select
+                      value={quickForm.primaryProfession}
+                      onChange={(e) => setQuickForm({ ...quickForm, primaryProfession: e.target.value })}
+                      className="w-full px-3.5 py-2 rounded-xl bg-white border border-gray-200 text-xs font-semibold"
+                    >
+                      {JOB_SEEKER_PROFESSIONS.map((prof) => (
+                        <option key={prof} value={prof}>{prof}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div className="sm:col-span-2">
+                    <label className="text-[11px] font-bold text-gray-700 block mb-1">
+                      Skills (comma-separated)
+                    </label>
+                    <input
+                      type="text"
+                      value={quickForm.skillsText}
+                      onChange={(e) => setQuickForm({ ...quickForm, skillsText: e.target.value })}
+                      placeholder="e.g. Wiring, Switchgear, Solar Installation"
+                      className="w-full px-3.5 py-2 rounded-xl bg-white border border-gray-200 text-xs font-semibold"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-[11px] font-bold text-gray-700 block mb-1">Work Experience</label>
+                    <select
+                      value={quickForm.experience}
+                      onChange={(e) => setQuickForm({ ...quickForm, experience: e.target.value as ExperienceLevel })}
+                      className="w-full px-3.5 py-2 rounded-xl bg-white border border-gray-200 text-xs font-semibold"
+                    >
+                      {EXPERIENCE_LEVELS.map((exp) => (
+                        <option key={exp} value={exp}>{exp}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="text-[11px] font-bold text-gray-700 block mb-1">Highest Education</label>
+                    <select
+                      value={quickForm.education}
+                      onChange={(e) => setQuickForm({ ...quickForm, education: e.target.value as EducationLevel })}
+                      className="w-full px-3.5 py-2 rounded-xl bg-white border border-gray-200 text-xs font-semibold"
+                    >
+                      {EDUCATION_LEVELS.map((ed) => (
+                        <option key={ed} value={ed}>{ed}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="text-[11px] font-bold text-gray-700 block mb-1">Preferred Language</label>
+                    <select
+                      value={quickForm.preferredLanguage}
+                      onChange={(e) => setQuickForm({ ...quickForm, preferredLanguage: e.target.value })}
+                      className="w-full px-3.5 py-2 rounded-xl bg-white border border-gray-200 text-xs font-semibold"
+                    >
+                      {INDIAN_LANGUAGES.map((lang) => (
+                        <option key={lang} value={lang}>{lang}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="text-[11px] font-bold text-gray-700 block mb-1">Expected Monthly Salary</label>
+                    <input
+                      type="text"
+                      value={quickForm.expectedSalary}
+                      onChange={(e) => setQuickForm({ ...quickForm, expectedSalary: e.target.value })}
+                      className="w-full px-3.5 py-2 rounded-xl bg-white border border-gray-200 text-xs font-semibold"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-[11px] font-bold text-gray-700 block mb-1">Expected Daily Wage</label>
+                    <input
+                      type="text"
+                      value={quickForm.expectedDailyWage}
+                      onChange={(e) => setQuickForm({ ...quickForm, expectedDailyWage: e.target.value })}
+                      className="w-full px-3.5 py-2 rounded-xl bg-white border border-gray-200 text-xs font-semibold"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-[11px] font-bold text-gray-700 block mb-1">State</label>
+                    <select
+                      value={quickForm.state}
+                      onChange={(e) => setQuickForm({ ...quickForm, state: e.target.value })}
+                      className="w-full px-3.5 py-2 rounded-xl bg-white border border-gray-200 text-xs font-semibold"
+                    >
+                      <option value="">Select State</option>
+                      {INDIAN_STATES_AND_UTS.map((st) => (
+                        <option key={st} value={st}>{st}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="text-[11px] font-bold text-gray-700 block mb-1">City / Town</label>
+                    <input
+                      type="text"
+                      value={quickForm.city}
+                      onChange={(e) => setQuickForm({ ...quickForm, city: e.target.value })}
+                      className="w-full px-3.5 py-2 rounded-xl bg-white border border-gray-200 text-xs font-semibold"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-[11px] font-bold text-gray-700 block mb-1">PIN Code</label>
+                    <input
+                      type="text"
+                      maxLength={6}
+                      value={quickForm.pincode}
+                      onChange={(e) => setQuickForm({ ...quickForm, pincode: e.target.value.replace(/\D/g, '') })}
+                      className="w-full px-3.5 py-2 rounded-xl bg-white border border-gray-200 text-xs font-semibold"
+                    />
+                  </div>
+                  <div className="sm:col-span-2">
+                    <label className="text-[11px] font-bold text-gray-700 block mb-1">Current Residential Address</label>
+                    <input
+                      type="text"
+                      value={quickForm.currentAddress}
+                      onChange={(e) => setQuickForm({ ...quickForm, currentAddress: e.target.value })}
+                      className="w-full px-3.5 py-2 rounded-xl bg-white border border-gray-200 text-xs font-semibold"
+                    />
+                  </div>
+                </div>
+
+                <div className="flex justify-end gap-2 pt-2">
+                  <button
+                    type="button"
+                    onClick={() => setIsQuickEditing(false)}
+                    className="px-4 py-2 rounded-xl bg-white border border-gray-200 text-xs font-bold text-gray-700 cursor-pointer"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={isSavingQuickProfile}
+                    className="px-5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs cursor-pointer"
+                  >
+                    {isSavingQuickProfile ? 'Saving...' : 'Save Profile Changes'}
+                  </button>
+                </div>
+              </form>
+            )}
 
             {/* Verification Status Strip */}
             <div className="flex flex-wrap items-center gap-2">
@@ -1198,6 +1611,16 @@ export const WorkerDashboard: React.FC<WorkerDashboardProps> = ({
           onSave={async (url, name) => {
             await uploadWorkerResume(url, name);
           }}
+        />
+
+        {/* Change City / Relocation Modal */}
+        <ChangeLocationModal
+          isOpen={changeLocationOpen}
+          onClose={() => setChangeLocationOpen(false)}
+          role="worker"
+          onLocationUpdated={(summary) =>
+            setLocationUpdateNotice(`Relocated to ${summary}. Nearby job recommendations & 50 KM radar updated!`)
+          }
         />
         </div>
       </div>

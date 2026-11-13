@@ -82,7 +82,7 @@ export const AnimatedImage: React.FC<AnimatedImageProps> = ({
           className={className}
           initial={{ scale: 1.12, opacity: 0.7 }}
           whileInView={{ scale: 1, opacity: 1 }}
-          viewport={{ once: true, amount: 0.2 }}
+          viewport={{ once: true, amount: 0.02 }}
           transition={{ duration: 0.8, delay, ease: [0.16, 1, 0.3, 1] }}
         />
         <motion.div
@@ -90,7 +90,7 @@ export const AnimatedImage: React.FC<AnimatedImageProps> = ({
           className={`absolute inset-0 pointer-events-none ${curtainColor}`}
           initial={{ scaleX: 1 }}
           whileInView={{ scaleX: 0 }}
-          viewport={{ once: true, amount: 0.2 }}
+          viewport={{ once: true, amount: 0.02 }}
           transition={{ duration: 0.72, delay, ease: [0.77, 0, 0.175, 1] }}
           style={{ transformOrigin: 'right center' }}
         />
@@ -106,7 +106,7 @@ export const AnimatedImage: React.FC<AnimatedImageProps> = ({
         className={wrapperClassName}
         initial={{ clipPath: 'circle(0% at 50% 50%)', opacity: 0.4 }}
         whileInView={{ clipPath: 'circle(120% at 50% 50%)', opacity: 1 }}
-        viewport={{ once: true, amount: 0.2 }}
+        viewport={{ once: true, amount: 0.02 }}
         transition={{ duration: 0.75, delay, ease: [0.22, 1, 0.36, 1] }}
       >
         <img {...imgProps} className={className} />
@@ -123,7 +123,7 @@ export const AnimatedImage: React.FC<AnimatedImageProps> = ({
           className={className}
           initial={{ scale: 1.24, opacity: 0 }}
           whileInView={{ scale: 1, opacity: 1 }}
-          viewport={{ once: true, amount: 0.2 }}
+          viewport={{ once: true, amount: 0.02 }}
           transition={{ duration: 0.85, delay, ease: [0.16, 1, 0.3, 1] }}
         />
       </div>
@@ -152,7 +152,7 @@ export const AnimatedImage: React.FC<AnimatedImageProps> = ({
         className={wrapperClassName}
         initial={{ opacity: 0, rotate: -10, scale: 0.86 }}
         whileInView={{ opacity: 1, rotate: 0, scale: 1 }}
-        viewport={{ once: true, amount: 0.2 }}
+        viewport={{ once: true, amount: 0.02 }}
         transition={{ type: 'spring', stiffness: 200, damping: 16, delay }}
       >
         <img {...imgProps} className={className} />
@@ -169,7 +169,7 @@ export const AnimatedImage: React.FC<AnimatedImageProps> = ({
           className={className}
           initial={{ opacity: 0, filter: 'blur(12px)', scale: 1.04 }}
           whileInView={{ opacity: 1, filter: 'blur(0px)', scale: 1 }}
-          viewport={{ once: true, amount: 0.2 }}
+          viewport={{ once: true, amount: 0.02 }}
           transition={{ duration: 0.72, delay, ease: [0.22, 1, 0.36, 1] }}
         />
       </div>
@@ -199,7 +199,7 @@ export const AnimatedImage: React.FC<AnimatedImageProps> = ({
           className="absolute inset-y-0 left-0 w-1/2 bg-slate-900/90 pointer-events-none"
           initial={{ x: '0%' }}
           whileInView={{ x: '-100%' }}
-          viewport={{ once: true, amount: 0.2 }}
+          viewport={{ once: true, amount: 0.02 }}
           transition={{ duration: 0.72, delay, ease: [0.77, 0, 0.175, 1] }}
         />
         <motion.div
@@ -207,7 +207,7 @@ export const AnimatedImage: React.FC<AnimatedImageProps> = ({
           className="absolute inset-y-0 right-0 w-1/2 bg-slate-900/90 pointer-events-none"
           initial={{ x: '0%' }}
           whileInView={{ x: '100%' }}
-          viewport={{ once: true, amount: 0.2 }}
+          viewport={{ once: true, amount: 0.02 }}
           transition={{ duration: 0.72, delay, ease: [0.77, 0, 0.175, 1] }}
         />
       </div>
@@ -221,7 +221,7 @@ export const AnimatedImage: React.FC<AnimatedImageProps> = ({
       className={wrapperClassName}
       initial={{ borderRadius: '48%', scale: 0.9, opacity: 0 }}
       whileInView={{ borderRadius: '1rem', scale: 1, opacity: 1 }}
-      viewport={{ once: true, amount: 0.2 }}
+      viewport={{ once: true, amount: 0.02 }}
       transition={{ duration: 0.75, delay, ease: [0.22, 1, 0.36, 1] }}
     >
       <img {...imgProps} className={className} />

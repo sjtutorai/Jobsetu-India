@@ -6,6 +6,7 @@ import { useJobs } from '../../context/JobContext';
 import { WorkerProfile, WORKER_OCCUPATION_GROUPS } from '../../types';
 import { calculateDistance } from '../../lib/geo';
 import { InteractiveMapView, MapMarkerItem } from './InteractiveMapView';
+import { ChangeLocationModal } from '../common/ChangeLocationModal';
 import {
   Users,
   MapPin,
@@ -36,7 +37,7 @@ export const WorkersNearMeView: React.FC<WorkersNearMeViewProps> = ({
   onSendHiringRequest,
   onOpenChat
 }) => {
-  const { employerProfile, userProfile } = useAuth();
+  const { employerProfile } = useAuth();
   const { startConversation } = useJobs();
 
   // Employer business location or India center until GPS/pin is selected
@@ -50,6 +51,28 @@ export const WorkersNearMeView: React.FC<WorkersNearMeViewProps> = ({
       ? `${employerProfile.city}${employerProfile.state ? `, ${employerProfile.state}` : ''}`
       : 'India (Tap Map or Allow GPS)'
   );
+  const [changeLocationOpen, setChangeLocationOpen] = useState<boolean>(false);
+
+  useEffect(() => {
+    if (employerProfile?.lat !== undefined && employerProfile?.lng !== undefined) {
+      setCenterLat(employerProfile.lat);
+      setCenterLng(employerProfile.lng);
+    }
+    if (employerProfile?.city || employerProfile?.state) {
+      setWorkplaceName(
+        `${employerProfile.city || ''}${employerProfile.city && employerProfile.state ? ', ' : ''}${employerProfile.state || ''}`
+      );
+    }
+    if (employerProfile?.discoveryRadiusKm) {
+      setRadiusKm(employerProfile.discoveryRadiusKm);
+    }
+  }, [
+    employerProfile?.lat,
+    employerProfile?.lng,
+    employerProfile?.city,
+    employerProfile?.state,
+    employerProfile?.discoveryRadiusKm
+  ]);
 
   useEffect(() => {
     if (!employerProfile?.lat && !employerProfile?.lng && navigator.geolocation) {
@@ -227,9 +250,20 @@ export const WorkersNearMeView: React.FC<WorkersNearMeViewProps> = ({
             </p>
           </div>
 
-          <div className="px-4 py-2.5 rounded-2xl bg-black/25 backdrop-blur-md border border-white/20 text-white text-xs font-semibold flex items-center gap-2">
-            <MapPin className="w-4 h-4 text-amber-300 shrink-0" />
-            <span>Search Center: {workplaceName}</span>
+          <div className="flex flex-wrap items-center gap-3">
+            <button
+              type="button"
+              onClick={() => setChangeLocationOpen(true)}
+              className="px-4 py-2.5 rounded-2xl bg-slate-900 hover:bg-slate-800 text-amber-300 font-black text-xs shadow-md flex items-center gap-1.5 cursor-pointer transition-transform active:scale-95"
+            >
+              <Compass className="w-4 h-4" />
+              <span>Change City</span>
+            </button>
+
+            <div className="px-4 py-2.5 rounded-2xl bg-black/25 backdrop-blur-md border border-white/20 text-white text-xs font-semibold flex items-center gap-2">
+              <MapPin className="w-4 h-4 text-amber-300 shrink-0" />
+              <span>Search Center: {workplaceName}</span>
+            </div>
           </div>
         </div>
 
@@ -624,6 +658,11 @@ export const WorkersNearMeView: React.FC<WorkersNearMeViewProps> = ({
           </div>
         )}
       </div>
+      <ChangeLocationModal
+        isOpen={changeLocationOpen}
+        onClose={() => setChangeLocationOpen(false)}
+        role="employer"
+      />
     </div>
   );
 };

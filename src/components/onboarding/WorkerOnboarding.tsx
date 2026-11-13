@@ -76,6 +76,7 @@ import {
 interface WorkerOnboardingProps {
   onComplete: () => void;
   onCancel: () => void;
+  initialStep?: number;
 }
 
 const TOTAL_STEPS = 7;
@@ -125,16 +126,24 @@ const PROFESSION_DEFAULT_SKILLS: Record<string, string[]> = {
   'Delivery Worker': ['Delivery', 'Logistics', 'Route Navigation']
 };
 
-export const WorkerOnboarding: React.FC<WorkerOnboardingProps> = ({ onComplete, onCancel }) => {
+export const WorkerOnboarding: React.FC<WorkerOnboardingProps> = ({
+  onComplete,
+  onCancel,
+  initialStep = 1
+}) => {
   const { currentUser, userProfile, workerProfile, saveWorkerProfile, saveDraftWorkerProfile } = useAuth();
 
-  // Start at Step 1 (Welcome Screen) for fresh signups, or allow direct editing
-  const [currentStep, setCurrentStep] = useState<number>(1);
+  // Start at initialStep (1 for new signups, 2 when editing existing profile)
+  const [currentStep, setCurrentStep] = useState<number>(initialStep);
   const [submitting, setSubmitting] = useState(false);
   const [autosaving, setAutosaving] = useState(false);
   const [lastAutosavedAt, setLastAutosavedAt] = useState<string | null>(null);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [registrationCompleteBanner, setRegistrationCompleteBanner] = useState(false);
+
+  useEffect(() => {
+    setCurrentStep(initialStep);
+  }, [initialStep]);
 
   // Camera capture state for Profile Photograph
   const [cameraActive, setCameraActive] = useState(false);
@@ -293,6 +302,97 @@ export const WorkerOnboarding: React.FC<WorkerOnboardingProps> = ({ onComplete, 
   );
   const [emailOtpSent, setEmailOtpSent] = useState(false);
   const [emailOtpInput, setEmailOtpInput] = useState('');
+
+  // Reactive Hydration: whenever workerProfile, userProfile, or currentUser loads/updates,
+  // populate any empty local fields so saved profile details NEVER disappear!
+  useEffect(() => {
+    if (!workerProfile && !userProfile && !currentUser) return;
+    setFullName((prev) => prev || workerProfile?.fullName || userProfile?.name || currentUser?.displayName || '');
+    setProfilePhoto((prev) => prev || workerProfile?.profilePhoto || userProfile?.profilePhoto || '');
+    setPhone((prev) =>
+      prev && prev.trim() !== '+91'
+        ? prev
+        : workerProfile?.phone || userProfile?.phone || currentUser?.phoneNumber || '+91 '
+    );
+    setEmail((prev) => prev || workerProfile?.email || userProfile?.email || currentUser?.email || '');
+    if (workerProfile?.dateOfBirth) setDateOfBirth((prev) => prev || workerProfile.dateOfBirth!);
+    if (workerProfile?.gender) setGender(workerProfile.gender);
+    if (workerProfile?.currentAddress) setCurrentAddress((prev) => prev || workerProfile.currentAddress!);
+    if (workerProfile?.state) setState((prev) => prev || workerProfile.state);
+    if (workerProfile?.district) setDistrict((prev) => prev || workerProfile.district!);
+    if (workerProfile?.city) setCity((prev) => prev || workerProfile.city!);
+    if (workerProfile?.area) setArea((prev) => prev || workerProfile.area!);
+    if (workerProfile?.pincode) setPincode((prev) => prev || workerProfile.pincode);
+    if (typeof workerProfile?.lat === 'number') setLat((prev) => prev ?? workerProfile.lat);
+    if (typeof workerProfile?.lng === 'number') setLng((prev) => prev ?? workerProfile.lng);
+    if (workerProfile?.preferredLanguage || userProfile?.preferredLanguage) {
+      setPreferredLanguage(
+        (prev) => prev || workerProfile?.preferredLanguage || userProfile?.preferredLanguage || 'Hindi (हिन्दी)'
+      );
+    }
+    if (workerProfile?.emergencyContactName) setEmergencyContactName((prev) => prev || workerProfile.emergencyContactName!);
+    if (workerProfile?.emergencyContactPhone) setEmergencyContactPhone((prev) => prev || workerProfile.emergencyContactPhone!);
+    if (workerProfile?.emergencyContactRelation) {
+      setEmergencyContactRelation((prev) => prev || workerProfile.emergencyContactRelation!);
+    }
+    if (workerProfile?.education) setEducation(workerProfile.education);
+    if (workerProfile?.schoolOrCollegeName) setSchoolOrCollegeName((prev) => prev || workerProfile.schoolOrCollegeName!);
+    if (workerProfile?.passingYear) setPassingYear((prev) => prev || workerProfile.passingYear!);
+    if (workerProfile?.additionalQualifications) {
+      setAdditionalQualifications((prev) => prev || workerProfile.additionalQualifications!);
+    }
+    if (workerProfile?.educationCertificates?.length) {
+      setEducationCertificates((prev) => (prev.length > 0 ? prev : workerProfile.educationCertificates!));
+    }
+    if (workerProfile?.selectedProfessions?.length) {
+      setSelectedProfessions((prev) => (prev.length > 0 ? prev : workerProfile.selectedProfessions!));
+    }
+    if (workerProfile?.customProfession) setCustomProfession((prev) => prev || workerProfile.customProfession!);
+    if (workerProfile?.experience) setExperience(workerProfile.experience);
+    if (workerProfile?.previousCompanyName) setPreviousCompanyName((prev) => prev || workerProfile.previousCompanyName!);
+    if (workerProfile?.previousJobRole) setPreviousJobRole((prev) => prev || workerProfile.previousJobRole!);
+    if (workerProfile?.skills?.length) setSelectedSkills((prev) => (prev.length > 0 ? prev : workerProfile.skills!));
+    if (workerProfile?.customSkills?.length) setCustomSkills((prev) => (prev.length > 0 ? prev : workerProfile.customSkills!));
+    if (workerProfile?.workPortfolioUrl) setWorkPortfolioUrl((prev) => prev || workerProfile.workPortfolioUrl!);
+    if (workerProfile?.workPortfolioDescription) {
+      setWorkPortfolioDescription((prev) => prev || workerProfile.workPortfolioDescription!);
+    }
+    if (workerProfile?.workPortfolioImages?.length) {
+      setWorkPortfolioImages((prev) => (prev.length > 0 ? prev : workerProfile.workPortfolioImages!));
+    }
+    if (workerProfile?.skillCertificates?.length) {
+      setSkillCertificates((prev) => (prev.length > 0 ? prev : workerProfile.skillCertificates!));
+    }
+    if (workerProfile?.preferredLocations?.length || workerProfile?.jobPreferences?.preferredLocations?.length) {
+      setPreferredLocations((prev) =>
+        prev.length > 0
+          ? prev
+          : workerProfile?.preferredLocations || workerProfile?.jobPreferences?.preferredLocations || []
+      );
+    }
+    if (workerProfile?.jobPreferences) {
+      const jp = workerProfile.jobPreferences;
+      if (jp.preferredSearchRadiusKm) setPreferredSearchRadiusKm(jp.preferredSearchRadiusKm);
+      if (jp.jobTypes?.length) setJobTypes((prev) => (prev.length > 0 ? prev : jp.jobTypes));
+      if (jp.expectedSalary) setExpectedSalary((prev) => prev || jp.expectedSalary);
+      if (jp.expectedDailyWage) setExpectedDailyWage((prev) => prev || jp.expectedDailyWage!);
+      if (jp.preferredWorkingHours) setPreferredWorkingHours((prev) => prev || jp.preferredWorkingHours!);
+      if (jp.availability) setAvailability(jp.availability);
+      if (jp.willingToRelocate !== undefined) setWillingToRelocate(jp.willingToRelocate);
+      if (jp.accommodationRequired !== undefined) setAccommodationRequired(jp.accommodationRequired);
+    }
+    if (workerProfile?.resumeUrl) setResumeUrl((prev) => prev || workerProfile.resumeUrl!);
+    if (workerProfile?.resumeName) setResumeName((prev) => prev || workerProfile.resumeName!);
+    if (workerProfile?.identityVerificationStatus) {
+      setIdentityVerificationStatus(workerProfile.identityVerificationStatus);
+    }
+    if (workerProfile?.digilockerLinked) setDigilockerLinked(true);
+    if (workerProfile?.digilockerSharedDocs?.length) {
+      setDigilockerSharedDocs((prev) => (prev.length > 0 ? prev : workerProfile.digilockerSharedDocs!));
+    }
+    if (workerProfile?.mobileOtpVerified) setMobileOtpVerified(true);
+    if (workerProfile?.emailVerified) setEmailVerified(true);
+  }, [workerProfile, userProfile, currentUser]);
 
   // Stop webcam stream on unmount
   useEffect(() => {
@@ -943,16 +1043,14 @@ export const WorkerOnboarding: React.FC<WorkerOnboardingProps> = ({ onComplete, 
           )}
         </AnimatePresence>
 
-        {/* Main Animated Step Container */}
-        <AnimatePresence mode="wait">
-          <motion.div
-            key={currentStep}
-            initial={{ opacity: 0, y: 14 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -14 }}
-            transition={{ duration: 0.22 }}
-            className="bg-white rounded-3xl p-6 sm:p-10 shadow-sm border border-slate-200/90"
-          >
+        {/* Main Step Container */}
+        <motion.div
+          key={currentStep}
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.2 }}
+          className="bg-white rounded-3xl p-6 sm:p-10 shadow-sm border border-slate-200/90"
+        >
             {/* ==================== STEP 1: SIGNUP WELCOME SCREEN ==================== */}
             {currentStep === 1 && (
               <div className="space-y-8">
@@ -2812,7 +2910,6 @@ export const WorkerOnboarding: React.FC<WorkerOnboardingProps> = ({ onComplete, 
               </div>
             )}
           </motion.div>
-        </AnimatePresence>
       </div>
     </div>
   );

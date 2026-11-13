@@ -4,6 +4,7 @@ import { useAuth } from '../../context/AuthContext';
 import { Job, SKILL_CATEGORIES_DATA } from '../../types';
 import { calculateDistance } from '../../lib/geo';
 import { InteractiveMapView, MapMarkerItem } from './InteractiveMapView';
+import { ChangeLocationModal } from '../common/ChangeLocationModal';
 import {
   MapPin,
   Search,
@@ -36,7 +37,7 @@ export const JobsNearMeView: React.FC<JobsNearMeViewProps> = ({
   savedJobIds = []
 }) => {
   const { jobs } = useJobs();
-  const { workerProfile, userProfile } = useAuth();
+  const { currentUser, workerProfile } = useAuth();
 
   // Location resolution: Worker saved GPS or India center until GPS/pin is selected
   const defaultLat = workerProfile?.lat || 20.5937;
@@ -69,6 +70,7 @@ export const JobsNearMeView: React.FC<JobsNearMeViewProps> = ({
 
   const [selectedJobId, setSelectedJobId] = useState<string | null>(null);
   const [detectingLocation, setDetectingLocation] = useState<boolean>(false);
+  const [changeLocationOpen, setChangeLocationOpen] = useState<boolean>(false);
 
   // Auto detect user browser/mobile geolocation
   const handleDetectGPS = () => {
@@ -90,6 +92,27 @@ export const JobsNearMeView: React.FC<JobsNearMeViewProps> = ({
       { timeout: 8000, enableHighAccuracy: true }
     );
   };
+
+  useEffect(() => {
+    if (workerProfile?.lat !== undefined && workerProfile?.lng !== undefined) {
+      setCenterLat(workerProfile.lat);
+      setCenterLng(workerProfile.lng);
+    }
+    if (workerProfile?.city || workerProfile?.state) {
+      setLocationName(
+        `${workerProfile.city || ''}${workerProfile.city && workerProfile.state ? ', ' : ''}${workerProfile.state || ''}`
+      );
+    }
+    if (workerProfile?.jobPreferences?.preferredSearchRadiusKm) {
+      setRadiusKm(workerProfile.jobPreferences.preferredSearchRadiusKm);
+    }
+  }, [
+    workerProfile?.lat,
+    workerProfile?.lng,
+    workerProfile?.city,
+    workerProfile?.state,
+    workerProfile?.jobPreferences?.preferredSearchRadiusKm
+  ]);
 
   useEffect(() => {
     if (!workerProfile?.lat && !workerProfile?.lng) {
@@ -225,7 +248,7 @@ export const JobsNearMeView: React.FC<JobsNearMeViewProps> = ({
           </div>
 
           {/* Quick Location & GPS Badge */}
-          <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3">
+          <div className="flex flex-wrap items-center gap-3">
             <button
               type="button"
               onClick={handleDetectGPS}
@@ -235,6 +258,17 @@ export const JobsNearMeView: React.FC<JobsNearMeViewProps> = ({
               <Navigation className={`w-4 h-4 ${detectingLocation ? 'animate-spin' : ''}`} />
               <span>{detectingLocation ? 'Detecting GPS...' : 'Use My Exact Location'}</span>
             </button>
+
+            {currentUser && (
+              <button
+                type="button"
+                onClick={() => setChangeLocationOpen(true)}
+                className="px-4 py-2.5 rounded-2xl bg-amber-400 hover:bg-amber-300 text-slate-950 font-black text-xs shadow-md flex items-center gap-1.5 cursor-pointer transition-transform active:scale-95"
+              >
+                <Compass className="w-4 h-4" />
+                <span>Change City</span>
+              </button>
+            )}
 
             <div className="px-4 py-2.5 rounded-2xl bg-black/25 backdrop-blur-md border border-white/20 text-white text-xs font-semibold flex items-center gap-2">
               <MapPin className="w-4 h-4 text-amber-300 shrink-0" />
@@ -642,6 +676,11 @@ export const JobsNearMeView: React.FC<JobsNearMeViewProps> = ({
           </div>
         )}
       </div>
+      <ChangeLocationModal
+        isOpen={changeLocationOpen}
+        onClose={() => setChangeLocationOpen(false)}
+        role="worker"
+      />
     </div>
   );
 };

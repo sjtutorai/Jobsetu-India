@@ -86,9 +86,9 @@ const ENTRANCE_CONFIGS: Record<
   },
   // 24. Circular Reveal
   circularReveal: {
-    initial: { opacity: 0.2, clipPath: 'circle(0% at 50% 50%)' },
-    animate: { opacity: 1, clipPath: 'circle(150% at 50% 50%)' },
-    transition: { duration: 0.75, ease: [0.22, 1, 0.36, 1] }
+    initial: { opacity: 0.25, scale: 0.94 },
+    animate: { opacity: 1, scale: 1 },
+    transition: { duration: 0.55, ease: [0.22, 1, 0.36, 1] }
   },
   // 25. Elastic Bounce
   elasticBounce: {
@@ -122,9 +122,9 @@ const ENTRANCE_CONFIGS: Record<
   },
   // 30. Split Screen Reveal
   splitScreen: {
-    initial: { opacity: 0, clipPath: 'inset(0 50% 0 50%)' },
-    animate: { opacity: 1, clipPath: 'inset(0 0% 0 0%)' },
-    transition: { duration: 0.68, ease: [0.22, 1, 0.36, 1] }
+    initial: { opacity: 0.1, x: -20 },
+    animate: { opacity: 1, x: 0 },
+    transition: { duration: 0.55, ease: [0.22, 1, 0.36, 1] }
   }
 };
 
@@ -147,7 +147,7 @@ export const CreativeEntrance: React.FC<CreativeEntranceProps> = ({
       <motion.div
         initial={cfg.initial}
         whileInView={cfg.animate}
-        viewport={{ once, amount: 0.14 }}
+        viewport={{ once, amount: 0.04 }}
         transition={{
           duration,
           delay,
@@ -311,16 +311,15 @@ export const ImagePinningReveal: React.FC<{
     mm.add('(prefers-reduced-motion: no-preference)', () => {
       gsap.fromTo(
         el,
-        { y: 24, clipPath: 'inset(6% 0% 6% 0% round 20px)' },
+        { y: 12 },
         {
           y: 0,
-          clipPath: 'inset(0% 0% 0% 0% round 20px)',
           ease: 'power2.out',
           scrollTrigger: {
             trigger: el,
-            start: 'top 85%',
-            end: 'top 35%',
-            scrub: 0.7
+            start: 'top 90%',
+            end: 'top 45%',
+            scrub: 0.6
           }
         }
       );
@@ -368,10 +367,10 @@ export const ProgressiveImageReveal: React.FC<{
 
   return (
     <motion.div
-      initial={{ clipPath: 'inset(0 0 100% 0)', opacity: 0.4 }}
-      whileInView={{ clipPath: 'inset(0 0 0% 0)', opacity: 1 }}
-      viewport={{ once: true, amount: 0.2 }}
-      transition={{ duration: 0.75, ease: [0.22, 1, 0.36, 1] }}
+      initial={{ y: 14, opacity: 0.75 }}
+      whileInView={{ y: 0, opacity: 1 }}
+      viewport={{ once: true, amount: 0.04 }}
+      transition={{ duration: 0.55, ease: [0.22, 1, 0.36, 1] }}
       className={className}
     >
       {children}

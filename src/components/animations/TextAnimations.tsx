@@ -22,7 +22,7 @@ export const SplitTextReveal: React.FC<BaseTextProps> = ({ text, className = '',
           className="inline-block"
           initial={{ opacity: 0, y: 18 }}
           whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true, amount: 0.2 }}
+          viewport={{ once: true, amount: 0.02 }}
           transition={{
             duration: 0.35,
             delay: delay + idx * 0.022,
@@ -55,7 +55,7 @@ export const WordStagger: React.FC<BaseTextProps & { stagger?: number }> = ({
             className="inline-block"
             initial={{ opacity: 0, y: 14 }}
             whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true, amount: 0.2 }}
+            viewport={{ once: true, amount: 0.02 }}
             transition={{
               duration: 0.42,
               delay: delay + idx * stagger,
@@ -82,7 +82,7 @@ export const Rotate3DText: React.FC<BaseTextProps> = ({ text, className = '', de
         className={`inline-block origin-bottom ${className}`}
         initial={{ opacity: 0, rotateX: -75, y: 16 }}
         whileInView={{ opacity: 1, rotateX: 0, y: 0 }}
-        viewport={{ once: true, amount: 0.2 }}
+        viewport={{ once: true, amount: 0.02 }}
         transition={{ duration: 0.65, delay, ease: [0.22, 1, 0.36, 1] }}
       >
         {text}
@@ -101,7 +101,7 @@ export const ElasticText: React.FC<BaseTextProps> = ({ text, className = '', del
       className={`inline-block origin-left ${className}`}
       initial={{ opacity: 0, scaleX: 1.28, scaleY: 0.78 }}
       whileInView={{ opacity: 1, scaleX: 1, scaleY: 1 }}
-      viewport={{ once: true, amount: 0.2 }}
+      viewport={{ once: true, amount: 0.02 }}
       transition={{
         type: 'spring',
         stiffness: 240,
@@ -138,7 +138,7 @@ export const WaveText: React.FC<BaseTextProps & { loop?: boolean }> = ({
             y: loop ? [0, -5, 0] : [8, -6, 0],
             opacity: 1
           }}
-          viewport={{ once: true, amount: 0.2 }}
+          viewport={{ once: true, amount: 0.02 }}
           transition={{
             duration: loop ? 2.4 : 0.55,
             delay: delay + idx * 0.03,
@@ -265,7 +265,7 @@ export const VerticalRevealText: React.FC<BaseTextProps> = ({ text, className = 
         className={`inline-block ${className}`}
         initial={{ y: '105%', opacity: 0 }}
         whileInView={{ y: '0%', opacity: 1 }}
-        viewport={{ once: true, amount: 0.2 }}
+        viewport={{ once: true, amount: 0.02 }}
         transition={{ duration: 0.6, delay, ease: [0.16, 1, 0.3, 1] }}
       >
         {text}
@@ -284,7 +284,7 @@ export const HorizontalMaskText: React.FC<BaseTextProps> = ({ text, className = 
       className={`inline-block ${className}`}
       initial={{ clipPath: 'inset(0 100% 0 0)', opacity: 0.2 }}
       whileInView={{ clipPath: 'inset(0 0% 0 0)', opacity: 1 }}
-      viewport={{ once: true, amount: 0.2 }}
+      viewport={{ once: true, amount: 0.02 }}
       transition={{ duration: 0.72, delay, ease: [0.22, 1, 0.36, 1] }}
     >
       {text}
@@ -306,7 +306,7 @@ export const FlipText: React.FC<BaseTextProps> = ({ text, className = '', delay 
             className="inline-block origin-top"
             initial={{ opacity: 0, rotateX: -85, y: 8 }}
             whileInView={{ opacity: 1, rotateX: 0, y: 0 }}
-            viewport={{ once: true, amount: 0.2 }}
+            viewport={{ once: true, amount: 0.02 }}
             transition={{
               duration: 0.5,
               delay: delay + idx * 0.06,
@@ -332,7 +332,7 @@ export const BlurRevealText: React.FC<BaseTextProps> = ({ text, className = '', 
       className={`inline-block ${className}`}
       initial={{ opacity: 0, filter: 'blur(10px)', y: 8 }}
       whileInView={{ opacity: 1, filter: 'blur(0px)', y: 0 }}
-      viewport={{ once: true, amount: 0.2 }}
+      viewport={{ once: true, amount: 0.02 }}
       transition={{ duration: 0.65, delay, ease: [0.22, 1, 0.36, 1] }}
     >
       {text}
@@ -354,7 +354,7 @@ export const GlitchText: React.FC<BaseTextProps> = ({ text, className = '', dela
       className={`inline-block ${isInView ? 'jobsetu-glitch-once' : ''} ${className}`}
       initial={{ opacity: 0, x: -4 }}
       whileInView={{ opacity: 1, x: 0 }}
-      viewport={{ once: true, amount: 0.2 }}
+      viewport={{ once: true, amount: 0.02 }}
       transition={{ duration: 0.45, delay }}
     >
       {text}
@@ -377,7 +377,7 @@ export const CharacterDropText: React.FC<BaseTextProps> = ({ text, className = '
           className="inline-block"
           initial={{ opacity: 0, y: -22 }}
           whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true, amount: 0.2 }}
+          viewport={{ once: true, amount: 0.02 }}
           transition={{
             type: 'spring',
             stiffness: 320,
@@ -407,7 +407,7 @@ export const PerspectiveRevealText: React.FC<BaseTextProps> = ({
         className={`inline-block ${className}`}
         initial={{ opacity: 0, rotateY: 16, rotateX: 12, scale: 0.92, y: 18 }}
         whileInView={{ opacity: 1, rotateY: 0, rotateX: 0, scale: 1, y: 0 }}
-        viewport={{ once: true, amount: 0.2 }}
+        viewport={{ once: true, amount: 0.02 }}
         transition={{ duration: 0.72, delay, ease: [0.16, 1, 0.3, 1] }}
       >
         {text}

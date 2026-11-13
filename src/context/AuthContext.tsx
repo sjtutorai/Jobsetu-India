@@ -51,6 +51,21 @@ interface AuthContextType {
   saveDraftWorkerProfile: (partialProfile: Partial<WorkerProfile>) => Promise<void>;
   saveEmployerProfile: (profile: Omit<EmployerProfile, 'uid' | 'submittedAt' | 'updatedAt'>) => Promise<void>;
   saveDraftEmployerProfile: (partialProfile: Partial<EmployerProfile>) => Promise<void>;
+  updateUserLocation: (
+    role: UserRole,
+    location: {
+      state: string;
+      district?: string;
+      city: string;
+      area?: string;
+      pincode: string;
+      address?: string;
+      lat?: number;
+      lng?: number;
+      searchRadiusKm?: number;
+      addToPreferredLocations?: boolean;
+    }
+  ) => Promise<void>;
   refreshProfile: () => Promise<void>;
 }
 
@@ -226,11 +241,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     try {
       const userRef = doc(db, 'users', uid);
-      let userSnap;
+      let userSnap: any;
+      let userFetchFailed = false;
       try {
-        userSnap = await withTimeout(getDoc(userRef), 3500);
+        userSnap = await withTimeout(getDoc(userRef), 5500);
       } catch (err: any) {
-        console.warn('[JOBSETU] Warning fetching user document (using fast fallback):', err?.message);
+        userFetchFailed = true;
+        console.warn('[JOBSETU] Warning fetching user document (using cached fallback):', err?.message);
       }
 
       // Also fetch worker (from workerProfiles or jobSeekers) & employer (from employerProfiles or employers) in parallel
@@ -238,7 +255,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       let fetchedEmployer: EmployerProfile | null = localCachedEmp;
 
       await Promise.allSettled([
-        withTimeout(getDoc(doc(db, 'workerProfiles', uid)), 3000)
+        withTimeout(getDoc(doc(db, 'workerProfiles', uid)), 5000)
           .then((wSnap) => {
             if (wSnap.exists()) {
               fetchedWorker = mergePreservingNonEmpty<WorkerProfile>(fetchedWorker, wSnap.data() as WorkerProfile);
@@ -250,7 +267,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             }
           })
           .catch(() => {}),
-        withTimeout(getDoc(doc(db, 'jobSeekers', uid)), 3000)
+        withTimeout(getDoc(doc(db, 'jobSeekers', uid)), 5000)
           .then((jsSnap) => {
             if (jsSnap.exists()) {
               fetchedWorker = mergePreservingNonEmpty<WorkerProfile>(fetchedWorker, jsSnap.data() as WorkerProfile);
@@ -262,7 +279,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             }
           })
           .catch(() => {}),
-        withTimeout(getDoc(doc(db, 'employerProfiles', uid)), 3000)
+        withTimeout(getDoc(doc(db, 'employerProfiles', uid)), 5000)
           .then((eSnap) => {
             if (eSnap.exists()) {
               fetchedEmployer = mergePreservingNonEmpty<EmployerProfile>(fetchedEmployer, eSnap.data() as EmployerProfile);
@@ -274,7 +291,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             }
           })
           .catch(() => {}),
-        withTimeout(getDoc(doc(db, 'employers', uid)), 3000)
+        withTimeout(getDoc(doc(db, 'employers', uid)), 5000)
           .then((empColSnap) => {
             if (empColSnap.exists()) {
               fetchedEmployer = mergePreservingNonEmpty<EmployerProfile>(fetchedEmployer, empColSnap.data() as EmployerProfile);
@@ -291,15 +308,51 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       let profileData: UserProfile;
       let isNewUser = false;
 
-      if (!userSnap || !userSnap.exists()) {
-        isNewUser = true;
-        let cachedProfile: UserProfile | null = null;
-        try {
-          const raw = localStorage.getItem(cachedUserKey);
-          if (raw) cachedProfile = JSON.parse(raw);
-        } catch {
-          // ignore
+      let cachedProfile: UserProfile | null = userProfileRef.current?.uid === uid ? userProfileRef.current : null;
+      try {
+        const raw = localStorage.getItem(cachedUserKey);
+        if (raw) {
+          cachedProfile = mergePreservingNonEmpty<UserProfile>(cachedProfile, JSON.parse(raw));
         }
+      } catch {
+        // ignore
+      }
+
+      if (userSnap && userSnap.exists()) {
+        profileData = mergePreservingNonEmpty<UserProfile>(cachedProfile, userSnap.data() as UserProfile);
+        // Always trust saved activeRole across devices
+        if (!profileData.activeRole) {
+          if (profileData.enabledRoles?.includes('employer') && !profileData.enabledRoles?.includes('worker')) {
+            profileData.activeRole = 'employer';
+          } else if (fetchedEmployer && !fetchedWorker) {
+            profileData.activeRole = 'employer';
+          } else {
+            profileData.activeRole = fallbackRole || cachedProfile?.activeRole || 'worker';
+          }
+        }
+      } else if (userFetchFailed && (cachedProfile || fetchedEmployer || fetchedWorker)) {
+        // Timeout/offline: NEVER overwrite existing remote user doc with blank defaults!
+        const inferredRole: UserRole =
+          cachedProfile?.activeRole ||
+          (fetchedEmployer && !fetchedWorker ? 'employer' : fallbackRole || intendedRole || 'worker');
+        profileData = cachedProfile || {
+          uid,
+          name:
+            fetchedEmployer?.ownerName ||
+            fetchedWorker?.fullName ||
+            firebaseUser.displayName ||
+            (firebaseUser.email ? firebaseUser.email.split('@')[0] : 'User'),
+          email: fetchedEmployer?.ownerEmail || fetchedWorker?.email || firebaseUser.email || '',
+          phone: fetchedEmployer?.ownerPhone || fetchedWorker?.phone || firebaseUser.phoneNumber || '',
+          enabledRoles: [inferredRole],
+          activeRole: inferredRole,
+          profilePhoto: fetchedEmployer?.ownerProfilePhoto || fetchedWorker?.profilePhoto || firebaseUser.photoURL || '',
+          preferredLanguage: fetchedEmployer?.preferredLanguage || fetchedWorker?.preferredLanguage || 'English',
+          accountStatus: 'active',
+          onboardingCompleted: false
+        };
+      } else {
+        isNewUser = !userFetchFailed;
 
         // Determine initial role: if employerProfile exists, use employer; else fallbackRole or cachedProfile
         const inferredRole: UserRole =
@@ -322,28 +375,19 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           updatedAt: serverTimestamp()
         };
 
-        setDoc(userRef, stripUndefined(newProfile), { merge: true }).catch((err) => {
-          console.warn('[JOBSETU] Notice: setDoc queued or delayed in offline mode:', err);
-        });
+        if (!userFetchFailed) {
+          setDoc(userRef, stripUndefined(newProfile), { merge: true }).catch((err) => {
+            console.warn('[JOBSETU] Notice: setDoc queued or delayed in offline mode:', err);
+          });
+        }
 
         profileData = newProfile;
-      } else {
-        profileData = userSnap.data() as UserProfile;
-        // If user document exists in Firestore, ALWAYS trust its saved activeRole across devices!
-        if (!profileData.activeRole) {
-          if (profileData.enabledRoles?.includes('employer') && !profileData.enabledRoles?.includes('worker')) {
-            profileData.activeRole = 'employer';
-          } else if (fetchedEmployer && !fetchedWorker) {
-            profileData.activeRole = 'employer';
-          } else {
-            profileData.activeRole = fallbackRole || 'worker';
-          }
-        }
       }
 
       const resolvedRole: UserRole = profileData.activeRole || 'worker';
       updateIntendedRole(resolvedRole);
       setUserProfile(profileData);
+      userProfileRef.current = profileData;
 
       try {
         localStorage.setItem(cachedUserKey, JSON.stringify(profileData));
@@ -902,72 +946,85 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const saveDraftWorkerProfile = async (partialProfile: Partial<WorkerProfile>) => {
     if (!currentUser) return;
     const uid = currentUser.uid;
-    const currentWorker = workerProfileRef.current;
+    let currentWorker = workerProfileRef.current;
+    if (!currentWorker) {
+      try {
+        const raw = localStorage.getItem(`jobsetu_worker_${uid}`);
+        if (raw) currentWorker = JSON.parse(raw);
+      } catch {}
+    }
     const currentUserProf = userProfileRef.current;
 
-    const merged: WorkerProfile = {
-      ...(currentWorker || {}),
-      ...partialProfile,
+    const baseDefaults: WorkerProfile = {
       uid,
-      fullName: partialProfile.fullName ?? currentWorker?.fullName ?? currentUserProf?.name ?? '',
-      phone: partialProfile.phone ?? currentWorker?.phone ?? currentUserProf?.phone ?? '',
-      email: partialProfile.email ?? currentWorker?.email ?? currentUserProf?.email ?? currentUser.email ?? '',
-      dateOfBirth: partialProfile.dateOfBirth ?? currentWorker?.dateOfBirth ?? '',
-      ageEligibilityConfirmed: partialProfile.ageEligibilityConfirmed ?? currentWorker?.ageEligibilityConfirmed ?? true,
-      gender: partialProfile.gender ?? currentWorker?.gender ?? 'male',
-      profilePhoto: partialProfile.profilePhoto ?? currentWorker?.profilePhoto ?? currentUserProf?.profilePhoto ?? '',
-      isPhotoVerifiedReal: partialProfile.isPhotoVerifiedReal ?? currentWorker?.isPhotoVerifiedReal ?? true,
-      currentAddress: partialProfile.currentAddress ?? currentWorker?.currentAddress ?? '',
+      fullName: currentWorker?.fullName || currentUserProf?.name || '',
+      phone: currentWorker?.phone || currentUserProf?.phone || '',
+      email: currentWorker?.email || currentUserProf?.email || currentUser.email || '',
+      dateOfBirth: currentWorker?.dateOfBirth || '',
+      ageEligibilityConfirmed: currentWorker?.ageEligibilityConfirmed ?? true,
+      gender: currentWorker?.gender || 'male',
+      profilePhoto: currentWorker?.profilePhoto || currentUserProf?.profilePhoto || '',
+      isPhotoVerifiedReal: currentWorker?.isPhotoVerifiedReal ?? true,
+      currentAddress: currentWorker?.currentAddress || '',
       country: 'India',
-      state: partialProfile.state ?? currentWorker?.state ?? '',
-      district: partialProfile.district ?? currentWorker?.district ?? '',
-      city: partialProfile.city ?? currentWorker?.city ?? '',
-      area: partialProfile.area ?? currentWorker?.area ?? '',
-      pincode: partialProfile.pincode ?? currentWorker?.pincode ?? '',
-      lat: partialProfile.lat ?? currentWorker?.lat,
-      lng: partialProfile.lng ?? currentWorker?.lng,
-      preferredLanguage: partialProfile.preferredLanguage ?? currentWorker?.preferredLanguage ?? currentUserProf?.preferredLanguage ?? 'Hindi (हिन्दी)',
-      emergencyContactName: partialProfile.emergencyContactName ?? currentWorker?.emergencyContactName ?? '',
-      emergencyContactPhone: partialProfile.emergencyContactPhone ?? currentWorker?.emergencyContactPhone ?? '',
-      emergencyContactRelation: partialProfile.emergencyContactRelation ?? currentWorker?.emergencyContactRelation ?? '',
-      preferredLocations: partialProfile.preferredLocations ?? currentWorker?.preferredLocations ?? [],
-      education: partialProfile.education ?? currentWorker?.education ?? 'Higher secondary',
-      schoolOrCollegeName: partialProfile.schoolOrCollegeName ?? currentWorker?.schoolOrCollegeName ?? '',
-      passingYear: partialProfile.passingYear ?? currentWorker?.passingYear ?? '',
-      additionalQualifications: partialProfile.additionalQualifications ?? currentWorker?.additionalQualifications ?? '',
-      educationCertificates: partialProfile.educationCertificates ?? currentWorker?.educationCertificates ?? [],
-      selectedProfessions: partialProfile.selectedProfessions ?? currentWorker?.selectedProfessions ?? [],
-      customProfession: partialProfile.customProfession ?? currentWorker?.customProfession ?? '',
-      skills: partialProfile.skills ?? currentWorker?.skills ?? [],
-      customSkills: partialProfile.customSkills ?? currentWorker?.customSkills ?? [],
-      experience: partialProfile.experience ?? currentWorker?.experience ?? 'Fresher',
-      previousCompanyName: partialProfile.previousCompanyName ?? currentWorker?.previousCompanyName ?? '',
-      previousJobRole: partialProfile.previousJobRole ?? currentWorker?.previousJobRole ?? '',
-      workPortfolioUrl: partialProfile.workPortfolioUrl ?? currentWorker?.workPortfolioUrl ?? '',
-      workPortfolioDescription: partialProfile.workPortfolioDescription ?? currentWorker?.workPortfolioDescription ?? '',
-      workPortfolioImages: partialProfile.workPortfolioImages ?? currentWorker?.workPortfolioImages ?? [],
-      skillCertificates: partialProfile.skillCertificates ?? currentWorker?.skillCertificates ?? [],
-      jobPreferences: partialProfile.jobPreferences ?? currentWorker?.jobPreferences ?? {
-        jobTypes: ['Full-time'],
-        expectedSalary: '₹15,000 - ₹25,000 / month',
-        expectedDailyWage: '₹600 - ₹900 / day',
-        preferredWorkingHours: '8 Hours Standard (Day Shift)',
-        preferredSearchRadiusKm: 50,
-        availability: 'Immediate',
-        preferredLocations: [],
-        willingToRelocate: false,
-        accommodationRequired: false
-      },
-      resumeUrl: partialProfile.resumeUrl ?? currentWorker?.resumeUrl ?? '',
-      resumeName: partialProfile.resumeName ?? currentWorker?.resumeName ?? '',
-      identityVerificationProvider: partialProfile.identityVerificationProvider ?? currentWorker?.identityVerificationProvider ?? '',
-      identityVerifiedMask: partialProfile.identityVerifiedMask ?? currentWorker?.identityVerifiedMask ?? '',
-      identityVerificationStatus: partialProfile.identityVerificationStatus ?? currentWorker?.identityVerificationStatus ?? 'Not Started',
-      digilockerLinked: partialProfile.digilockerLinked ?? currentWorker?.digilockerLinked ?? false,
-      digilockerSharedDocs: partialProfile.digilockerSharedDocs ?? currentWorker?.digilockerSharedDocs ?? [],
-      mobileOtpVerified: partialProfile.mobileOtpVerified ?? currentWorker?.mobileOtpVerified ?? false,
-      emailVerified: partialProfile.emailVerified ?? currentWorker?.emailVerified ?? true,
-      profileCompletionPercentage: partialProfile.profileCompletionPercentage ?? currentWorker?.profileCompletionPercentage ?? 35,
+      state: currentWorker?.state || '',
+      district: currentWorker?.district || '',
+      city: currentWorker?.city || '',
+      area: currentWorker?.area || '',
+      pincode: currentWorker?.pincode || '',
+      lat: currentWorker?.lat,
+      lng: currentWorker?.lng,
+      preferredLanguage: currentWorker?.preferredLanguage || currentUserProf?.preferredLanguage || 'Hindi (हिन्दी)',
+      emergencyContactName: currentWorker?.emergencyContactName || '',
+      emergencyContactPhone: currentWorker?.emergencyContactPhone || '',
+      emergencyContactRelation: currentWorker?.emergencyContactRelation || '',
+      preferredLocations: currentWorker?.preferredLocations || [],
+      education: currentWorker?.education || 'Higher secondary',
+      schoolOrCollegeName: currentWorker?.schoolOrCollegeName || '',
+      passingYear: currentWorker?.passingYear || '',
+      additionalQualifications: currentWorker?.additionalQualifications || '',
+      educationCertificates: currentWorker?.educationCertificates || [],
+      selectedProfessions: currentWorker?.selectedProfessions || [],
+      customProfession: currentWorker?.customProfession || '',
+      skills: currentWorker?.skills || [],
+      customSkills: currentWorker?.customSkills || [],
+      experience: currentWorker?.experience || 'Fresher',
+      previousCompanyName: currentWorker?.previousCompanyName || '',
+      previousJobRole: currentWorker?.previousJobRole || '',
+      workPortfolioUrl: currentWorker?.workPortfolioUrl || '',
+      workPortfolioDescription: currentWorker?.workPortfolioDescription || '',
+      workPortfolioImages: currentWorker?.workPortfolioImages || [],
+      skillCertificates: currentWorker?.skillCertificates || [],
+      jobPreferences: mergePreservingNonEmpty(
+        currentWorker?.jobPreferences || {
+          jobTypes: ['Full-time'],
+          expectedSalary: '₹15,000 - ₹25,000 / month',
+          expectedDailyWage: '₹600 - ₹900 / day',
+          preferredWorkingHours: '8 Hours Standard (Day Shift)',
+          preferredSearchRadiusKm: 50,
+          availability: 'Immediate',
+          preferredLocations: [],
+          willingToRelocate: false,
+          accommodationRequired: false
+        },
+        partialProfile.jobPreferences
+      ),
+      resumeUrl: currentWorker?.resumeUrl || '',
+      resumeName: currentWorker?.resumeName || '',
+      identityVerificationProvider: currentWorker?.identityVerificationProvider || '',
+      identityVerifiedMask: currentWorker?.identityVerifiedMask || '',
+      identityVerificationStatus: currentWorker?.identityVerificationStatus || 'Not Started',
+      digilockerLinked: currentWorker?.digilockerLinked ?? false,
+      digilockerSharedDocs: currentWorker?.digilockerSharedDocs || [],
+      mobileOtpVerified: currentWorker?.mobileOtpVerified ?? false,
+      emailVerified: currentWorker?.emailVerified ?? true,
+      profileCompletionPercentage: currentWorker?.profileCompletionPercentage ?? 35
+    };
+
+    const merged: WorkerProfile = {
+      ...mergePreservingNonEmpty<WorkerProfile>(baseDefaults, partialProfile),
+      uid,
+      jobPreferences: baseDefaults.jobPreferences,
       updatedAt: serverTimestamp()
     };
 
@@ -996,8 +1053,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     } catch {}
 
     await Promise.allSettled([
-      withTimeout(setDoc(doc(db, 'workerProfiles', uid), stripUndefined(merged), { merge: true }), 2500),
-      withTimeout(setDoc(doc(db, 'jobSeekers', uid), stripUndefined(merged), { merge: true }), 2500),
+      withTimeout(setDoc(doc(db, 'workerProfiles', uid), stripUndefined(merged), { merge: true }), 4000),
+      withTimeout(setDoc(doc(db, 'jobSeekers', uid), stripUndefined(merged), { merge: true }), 4000),
       withTimeout(
         setDoc(
           doc(db, 'users', uid),
@@ -1010,7 +1067,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           }),
           { merge: true }
         ),
-        2500
+        4000
       )
     ]);
   };
@@ -1074,62 +1131,84 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const saveDraftEmployerProfile = async (partialProfile: Partial<EmployerProfile>) => {
     if (!currentUser) return;
     const uid = currentUser.uid;
-    const currentEmp = employerProfileRef.current;
+    let currentEmp = employerProfileRef.current;
+    if (!currentEmp) {
+      try {
+        const raw = localStorage.getItem(`jobsetu_employer_${uid}`);
+        if (raw) currentEmp = JSON.parse(raw);
+      } catch {}
+    }
     const currentUserProf = userProfileRef.current;
 
-    const merged: EmployerProfile = {
-      ...(currentEmp || {}),
-      ...partialProfile,
+    const baseEmployer: EmployerProfile = {
       uid,
-      ownerName: partialProfile.ownerName ?? currentEmp?.ownerName ?? currentUserProf?.name ?? '',
-      ownerProfilePhoto: partialProfile.ownerProfilePhoto ?? currentEmp?.ownerProfilePhoto ?? currentUserProf?.profilePhoto ?? '',
-      ownerEmail: partialProfile.ownerEmail ?? currentEmp?.ownerEmail ?? currentUserProf?.email ?? currentUser.email ?? '',
-      ownerPhone: partialProfile.ownerPhone ?? currentEmp?.ownerPhone ?? currentUserProf?.phone ?? '',
-      designation: partialProfile.designation ?? currentEmp?.designation ?? 'Owner',
-      preferredLanguage: partialProfile.preferredLanguage ?? currentEmp?.preferredLanguage ?? currentUserProf?.preferredLanguage ?? 'Hindi (हिन्दी)',
-      ownerContactAddress: partialProfile.ownerContactAddress ?? currentEmp?.ownerContactAddress ?? '',
-      businessName: partialProfile.businessName ?? currentEmp?.businessName ?? '',
-      businessLogo: partialProfile.businessLogo ?? currentEmp?.businessLogo ?? '',
-      businessCategory: partialProfile.businessCategory ?? currentEmp?.businessCategory ?? 'Construction',
-      businessDescription: partialProfile.businessDescription ?? currentEmp?.businessDescription ?? '',
-      yearOfEstablishment: partialProfile.yearOfEstablishment ?? currentEmp?.yearOfEstablishment ?? '',
-      companySize: partialProfile.companySize ?? currentEmp?.companySize ?? '11–50 Employees',
-      companyRegistrationType: partialProfile.companyRegistrationType ?? currentEmp?.companyRegistrationType ?? 'Sole Proprietorship',
-      documentNumber: partialProfile.documentNumber ?? currentEmp?.documentNumber ?? '',
-      website: partialProfile.website ?? currentEmp?.website ?? '',
-      companyRegistrationDocuments: partialProfile.companyRegistrationDocuments ?? currentEmp?.companyRegistrationDocuments ?? [],
-      businessImages: partialProfile.businessImages ?? currentEmp?.businessImages ?? [],
-      boardGstinVerifiedByAI: partialProfile.boardGstinVerifiedByAI ?? currentEmp?.boardGstinVerifiedByAI ?? false,
-      aiBoardVerificationSummary: partialProfile.aiBoardVerificationSummary ?? currentEmp?.aiBoardVerificationSummary ?? '',
-      country: partialProfile.country ?? currentEmp?.country ?? 'India',
-      state: partialProfile.state ?? currentEmp?.state ?? '',
-      district: partialProfile.district ?? currentEmp?.district ?? '',
-      city: partialProfile.city ?? currentEmp?.city ?? '',
-      area: partialProfile.area ?? currentEmp?.area ?? '',
-      businessAddress: partialProfile.businessAddress ?? currentEmp?.businessAddress ?? '',
-      pincode: partialProfile.pincode ?? currentEmp?.pincode ?? '',
-      worksiteLocation: partialProfile.worksiteLocation ?? currentEmp?.worksiteLocation ?? '',
-      lat: partialProfile.lat ?? currentEmp?.lat,
-      lng: partialProfile.lng ?? currentEmp?.lng,
-      multipleWorkLocations: partialProfile.multipleWorkLocations ?? currentEmp?.multipleWorkLocations ?? [],
-      discoveryRadiusKm: partialProfile.discoveryRadiusKm ?? currentEmp?.discoveryRadiusKm ?? 50,
-      workforceTypesNeeded: partialProfile.workforceTypesNeeded ?? currentEmp?.workforceTypesNeeded ?? [],
-      labourRequirementDetails: partialProfile.labourRequirementDetails ?? currentEmp?.labourRequirementDetails,
-      salaryAndBenefits: partialProfile.salaryAndBenefits ?? currentEmp?.salaryAndBenefits,
-      workingConditions: partialProfile.workingConditions ?? currentEmp?.workingConditions,
-      hiringPreferences: partialProfile.hiringPreferences ?? currentEmp?.hiringPreferences,
-      mobileOtpVerified: partialProfile.mobileOtpVerified ?? currentEmp?.mobileOtpVerified ?? false,
-      emailVerified: partialProfile.emailVerified ?? currentEmp?.emailVerified ?? Boolean(currentUser.emailVerified),
+      ownerName: currentEmp?.ownerName || currentUserProf?.name || '',
+      ownerProfilePhoto: currentEmp?.ownerProfilePhoto || currentUserProf?.profilePhoto || '',
+      ownerEmail: currentEmp?.ownerEmail || currentUserProf?.email || currentUser.email || '',
+      ownerPhone: currentEmp?.ownerPhone || currentUserProf?.phone || '',
+      designation: currentEmp?.designation || 'Owner',
+      preferredLanguage: currentEmp?.preferredLanguage || currentUserProf?.preferredLanguage || 'Hindi (हिन्दी)',
+      ownerContactAddress: currentEmp?.ownerContactAddress || '',
+      businessName: currentEmp?.businessName || '',
+      businessLogo: currentEmp?.businessLogo || '',
+      businessCategory: currentEmp?.businessCategory || 'Construction',
+      businessDescription: currentEmp?.businessDescription || '',
+      yearOfEstablishment: currentEmp?.yearOfEstablishment || '',
+      companySize: currentEmp?.companySize || '11–50 Employees',
+      companyRegistrationType: currentEmp?.companyRegistrationType || 'Sole Proprietorship',
+      documentNumber: currentEmp?.documentNumber || '',
+      website: currentEmp?.website || '',
+      companyRegistrationDocuments: currentEmp?.companyRegistrationDocuments || [],
+      businessImages: currentEmp?.businessImages || [],
+      boardGstinVerifiedByAI: currentEmp?.boardGstinVerifiedByAI ?? false,
+      aiBoardVerificationSummary: currentEmp?.aiBoardVerificationSummary || '',
+      country: currentEmp?.country || 'India',
+      state: currentEmp?.state || '',
+      district: currentEmp?.district || '',
+      city: currentEmp?.city || '',
+      area: currentEmp?.area || '',
+      businessAddress: currentEmp?.businessAddress || '',
+      pincode: currentEmp?.pincode || '',
+      worksiteLocation: currentEmp?.worksiteLocation || '',
+      lat: currentEmp?.lat,
+      lng: currentEmp?.lng,
+      multipleWorkLocations: currentEmp?.multipleWorkLocations || [],
+      discoveryRadiusKm: currentEmp?.discoveryRadiusKm || 50,
+      workforceTypesNeeded: currentEmp?.workforceTypesNeeded || [],
+      labourRequirementDetails: currentEmp?.labourRequirementDetails,
+      salaryAndBenefits: currentEmp?.salaryAndBenefits,
+      workingConditions: currentEmp?.workingConditions,
+      hiringPreferences: currentEmp?.hiringPreferences,
+      mobileOtpVerified: currentEmp?.mobileOtpVerified ?? false,
+      emailVerified: currentEmp?.emailVerified ?? Boolean(currentUser.emailVerified),
       phoneVerified: Boolean(partialProfile.mobileOtpVerified || currentEmp?.mobileOtpVerified || partialProfile.ownerPhone || currentEmp?.ownerPhone || currentUser.phoneNumber),
-      companyDocumentVerified: partialProfile.companyDocumentVerified ?? currentEmp?.companyDocumentVerified ?? false,
-      gstinVerified: partialProfile.gstinVerified ?? currentEmp?.gstinVerified ?? false,
-      authorizedVerificationProvider: partialProfile.authorizedVerificationProvider ?? currentEmp?.authorizedVerificationProvider ?? '',
-      authorizedVerificationRef: partialProfile.authorizedVerificationRef ?? currentEmp?.authorizedVerificationRef ?? '',
-      verificationStatus:
-        partialProfile.verificationStatus ??
-        currentEmp?.verificationStatus ??
-        'Verification Required',
-      profileCompletionPercentage: partialProfile.profileCompletionPercentage ?? currentEmp?.profileCompletionPercentage ?? 35,
+      companyDocumentVerified: currentEmp?.companyDocumentVerified ?? false,
+      gstinVerified: currentEmp?.gstinVerified ?? false,
+      authorizedVerificationProvider: currentEmp?.authorizedVerificationProvider || '',
+      authorizedVerificationRef: currentEmp?.authorizedVerificationRef || '',
+      verificationStatus: currentEmp?.verificationStatus || 'Verification Required',
+      profileCompletionPercentage: currentEmp?.profileCompletionPercentage ?? 35
+    };
+
+    const merged: EmployerProfile = {
+      ...mergePreservingNonEmpty<EmployerProfile>(baseEmployer, partialProfile),
+      uid,
+      labourRequirementDetails:
+        partialProfile.labourRequirementDetails || baseEmployer.labourRequirementDetails
+          ? mergePreservingNonEmpty(baseEmployer.labourRequirementDetails as any, partialProfile.labourRequirementDetails as any)
+          : undefined,
+      salaryAndBenefits:
+        partialProfile.salaryAndBenefits || baseEmployer.salaryAndBenefits
+          ? mergePreservingNonEmpty(baseEmployer.salaryAndBenefits as any, partialProfile.salaryAndBenefits as any)
+          : undefined,
+      workingConditions:
+        partialProfile.workingConditions || baseEmployer.workingConditions
+          ? mergePreservingNonEmpty(baseEmployer.workingConditions as any, partialProfile.workingConditions as any)
+          : undefined,
+      hiringPreferences:
+        partialProfile.hiringPreferences || baseEmployer.hiringPreferences
+          ? mergePreservingNonEmpty(baseEmployer.hiringPreferences as any, partialProfile.hiringPreferences as any)
+          : undefined,
       updatedAt: serverTimestamp()
     };
 
@@ -1160,8 +1239,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
 
     await Promise.allSettled([
-      withTimeout(setDoc(doc(db, 'employerProfiles', uid), stripUndefined(merged), { merge: true }), 2500),
-      withTimeout(setDoc(doc(db, 'employers', uid), stripUndefined(merged), { merge: true }), 2500),
+      withTimeout(setDoc(doc(db, 'employerProfiles', uid), stripUndefined(merged), { merge: true }), 4000),
+      withTimeout(setDoc(doc(db, 'employers', uid), stripUndefined(merged), { merge: true }), 4000),
       withTimeout(
         setDoc(
           doc(db, 'users', uid),
@@ -1174,7 +1253,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           }),
           { merge: true }
         ),
-        2500
+        4000
       )
     ]);
   };
@@ -1264,6 +1343,85 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     ]);
   };
 
+  const updateUserLocation = async (
+    role: UserRole,
+    location: {
+      state: string;
+      district?: string;
+      city: string;
+      area?: string;
+      pincode: string;
+      address?: string;
+      lat?: number;
+      lng?: number;
+      searchRadiusKm?: number;
+      addToPreferredLocations?: boolean;
+    }
+  ) => {
+    if (!currentUser) return;
+    if (typeof location.lat === 'number' && typeof location.lng === 'number') {
+      try {
+        localStorage.setItem(
+          'jobsetu_detected_coords',
+          JSON.stringify({ lat: location.lat, lng: location.lng })
+        );
+      } catch {}
+    }
+
+    const radius = (location.searchRadiusKm || 50) as 5 | 10 | 25 | 50 | 100;
+
+    if (role === 'worker') {
+      const curr = workerProfileRef.current;
+      const cityLabel = [location.city, location.state].filter(Boolean).join(', ');
+      const existingPreferred = curr?.preferredLocations || [];
+      const nextPreferred =
+        location.addToPreferredLocations !== false && cityLabel && !existingPreferred.includes(cityLabel)
+          ? [cityLabel, ...existingPreferred].slice(0, 6)
+          : existingPreferred;
+
+      await saveDraftWorkerProfile({
+        state: location.state,
+        district: location.district ?? curr?.district ?? '',
+        city: location.city,
+        area: location.area ?? curr?.area ?? '',
+        pincode: location.pincode,
+        currentAddress: location.address || curr?.currentAddress || `${location.area ? location.area + ', ' : ''}${location.city}, ${location.state}`,
+        lat: location.lat,
+        lng: location.lng,
+        preferredLocations: nextPreferred,
+        jobPreferences: {
+          jobTypes: curr?.jobPreferences?.jobTypes || ['Full-time'],
+          expectedSalary: curr?.jobPreferences?.expectedSalary || '₹15,000 - ₹25,000 / month',
+          expectedDailyWage: curr?.jobPreferences?.expectedDailyWage || '₹600 - ₹900 / day',
+          preferredWorkingHours: curr?.jobPreferences?.preferredWorkingHours || '8 Hours Standard (Day Shift)',
+          preferredSearchRadiusKm: radius,
+          availability: curr?.jobPreferences?.availability || 'Immediate',
+          preferredLocations: nextPreferred,
+          willingToRelocate: curr?.jobPreferences?.willingToRelocate ?? false,
+          accommodationRequired: curr?.jobPreferences?.accommodationRequired ?? false
+        }
+      });
+    } else {
+      const curr = employerProfileRef.current;
+      const worksite = [location.area, location.city, location.state].filter(Boolean).join(', ');
+      await saveDraftEmployerProfile({
+        state: location.state,
+        district: location.district ?? curr?.district ?? '',
+        city: location.city,
+        area: location.area ?? curr?.area ?? '',
+        pincode: location.pincode,
+        businessAddress: location.address || curr?.businessAddress || worksite,
+        worksiteLocation: worksite,
+        lat: location.lat,
+        lng: location.lng,
+        discoveryRadiusKm: radius,
+        hiringPreferences: curr?.hiringPreferences
+          ? { ...curr.hiringPreferences, maxSearchRadiusKm: radius }
+          : undefined
+      });
+    }
+  };
+
   const refreshProfile = async () => {
     if (currentUser) {
       await fetchUserData(currentUser);
@@ -1294,6 +1452,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         saveDraftWorkerProfile,
         saveEmployerProfile,
         saveDraftEmployerProfile,
+        updateUserLocation,
         refreshProfile
       }}
     >

@@ -21,9 +21,9 @@ import { fireCelebrationConfetti } from './lib/confetti';
 
 import { AdminDashboard } from './components/admin/AdminDashboard';
 import { AIAssistantModal } from './components/common/AIAssistantModal';
-import { Shield, MapPin, Navigation, X, ArrowLeft } from 'lucide-react';
+import { Shield, MapPin, Navigation, X, ArrowLeft, AlertTriangle, RefreshCw } from 'lucide-react';
 import { executeRecaptchaEnterprise } from './lib/recaptcha';
-import { MotionConfig, AnimatePresence, motion } from 'motion/react';
+import { MotionConfig, motion } from 'motion/react';
 import {
   GlobalCursorEffects,
   PageTransitionWrapper,
@@ -65,6 +65,71 @@ const PATH_TO_MODAL: Record<string, ModalType> = {
   '/help': 'help'
 };
 
+interface ErrorBoundaryState {
+  hasError: boolean;
+  errorMessage: string;
+}
+
+class AppErrorBoundary extends React.Component<{ children: React.ReactNode }, ErrorBoundaryState> {
+  constructor(props: { children: React.ReactNode }) {
+    super(props);
+    this.state = { hasError: false, errorMessage: '' };
+  }
+
+  static getDerivedStateFromError(error: Error): ErrorBoundaryState {
+    return {
+      hasError: true,
+      errorMessage: error?.message || 'An unexpected display error occurred.'
+    };
+  }
+
+  componentDidCatch(error: Error) {
+    console.error('JOBSETU UI ErrorBoundary caught error:', error);
+  }
+
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div className="min-h-screen bg-slate-50 flex items-center justify-center p-6">
+          <div className="max-w-md w-full bg-white rounded-3xl p-8 shadow-xl border border-slate-200 text-center space-y-4">
+            <div className="w-14 h-14 rounded-2xl bg-amber-100 text-amber-600 flex items-center justify-center mx-auto">
+              <AlertTriangle className="w-7 h-7" />
+            </div>
+            <h2 className="text-xl font-black text-slate-900">Display Recovery Needed</h2>
+            <p className="text-xs text-slate-600 leading-relaxed">
+              We caught an unexpected screen error while loading this view ({this.state.errorMessage}). Your profile and saved data are completely safe.
+            </p>
+            <div className="flex flex-wrap items-center justify-center gap-3 pt-2">
+              <button
+                type="button"
+                onClick={() => {
+                  this.setState({ hasError: false, errorMessage: '' });
+                  window.history.pushState(null, '', '/');
+                  window.location.reload();
+                }}
+                className="px-5 py-2.5 rounded-xl bg-[#2563EB] hover:bg-blue-700 text-white font-bold text-xs flex items-center gap-2 cursor-pointer"
+              >
+                <RefreshCw className="w-4 h-4" />
+                <span>Reload JOBSETU</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  this.setState({ hasError: false, errorMessage: '' });
+                }}
+                className="px-5 py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-800 font-bold text-xs cursor-pointer"
+              >
+                Try Returning Back
+              </button>
+            </div>
+          </div>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
+
 function MainApp() {
   const {
     currentUser,
@@ -94,6 +159,7 @@ function MainApp() {
   const [aiModalOpen, setAiModalOpen] = useState(false);
   const [locationDeniedBanner, setLocationDeniedBanner] = useState(false);
   const [publicSelectedJob, setPublicSelectedJob] = useState<Job | null>(null);
+  const [onboardingInitialStep, setOnboardingInitialStep] = useState<number>(1);
 
   // Execute reCAPTCHA Enterprise assessment on app initialization to verify token & update request.json
   useEffect(() => {
@@ -147,15 +213,28 @@ function MainApp() {
   };
 
   // Route navigator with browser history pushState
-  const navigateTo = (path: string, newView: AppView, role?: UserRole) => {
+  const navigateTo = (
+    path: string,
+    newView: AppView,
+    role?: UserRole,
+    options?: { initialStep?: number }
+  ) => {
+    if (options?.initialStep !== undefined) {
+      setOnboardingInitialStep(options.initialStep);
+    } else if (newView === 'worker-onboarding' || newView === 'employer-onboarding') {
+      setOnboardingInitialStep(1);
+    }
     if (window.location.pathname !== path) {
       window.history.pushState(null, '', path);
     }
     if (role) {
       setIntendedRole(role);
-      switchActiveRole(role).catch(() => {});
+      if (userProfile?.activeRole !== role) {
+        switchActiveRole(role).catch(() => {});
+      }
     }
     setView(newView);
+    window.scrollTo({ top: 0, behavior: 'auto' });
   };
 
   const openAuthWithRoute = (role?: UserRole, mode: 'signin' | 'signup' | 'forgot' = 'signin') => {
@@ -561,12 +640,11 @@ function MainApp() {
 
       {/* Main Content Area with View Page Transitions */}
       <main className="flex-1">
-        <AnimatePresence mode="wait">
-          <PageTransitionWrapper
-            key={view}
-            routeKey={view}
-            kind={VIEW_TRANSITION_KIND[view]}
-          >
+        <PageTransitionWrapper
+          key={view}
+          routeKey={view}
+          kind={VIEW_TRANSITION_KIND[view]}
+        >
             {view === 'home' && (
               <>
                 <Hero
@@ -653,6 +731,7 @@ function MainApp() {
 
         {view === 'worker-onboarding' && (
           <WorkerOnboarding
+            initialStep={onboardingInitialStep}
             onComplete={handleWorkerOnboardingComplete}
             onCancel={() =>
               navigateTo(currentUser ? '/jobfinder' : '/', currentUser ? 'dashboard' : 'home')
@@ -662,6 +741,7 @@ function MainApp() {
 
         {view === 'employer-onboarding' && (
           <EmployerOnboarding
+            initialStep={onboardingInitialStep}
             onComplete={handleEmployerOnboardingComplete}
             onExploreNearbyWorkers={() => {
               fireCelebrationConfetti();
@@ -679,7 +759,7 @@ function MainApp() {
             {activeRole === 'worker' ? (
               <WorkerDashboard
                 onEditProfile={() =>
-                  navigateTo('/worker-onboarding', 'worker-onboarding', 'worker')
+                  navigateTo('/worker-onboarding', 'worker-onboarding', 'worker', { initialStep: 2 })
                 }
                 onActivateEmployer={handleActivateEmployer}
                 onSwitchRole={handleSwitchRole}
@@ -688,7 +768,7 @@ function MainApp() {
             ) : (
               <EmployerDashboard
                 onEditProfile={() =>
-                  navigateTo('/employer-onboarding', 'employer-onboarding', 'employer')
+                  navigateTo('/employer-onboarding', 'employer-onboarding', 'employer', { initialStep: 2 })
                 }
                 onActivateWorker={handleActivateWorker}
                 onSwitchRole={handleSwitchRole}
@@ -705,8 +785,7 @@ function MainApp() {
             }
           />
         )}
-          </PageTransitionWrapper>
-        </AnimatePresence>
+        </PageTransitionWrapper>
       </main>
 
       {/* Admin Console Shortcut (Only for Admin; AI Assistant is kept exclusively in the Slide Navigation Bar after login) */}
@@ -772,14 +851,16 @@ function MainApp() {
 
 export default function App() {
   return (
-    <MotionConfig reducedMotion="user">
-      <AuthProvider>
-        <JobProvider>
-          <AttendanceProvider>
-            <MainApp />
-          </AttendanceProvider>
-        </JobProvider>
-      </AuthProvider>
-    </MotionConfig>
+    <AppErrorBoundary>
+      <MotionConfig reducedMotion="user">
+        <AuthProvider>
+          <JobProvider>
+            <AttendanceProvider>
+              <MainApp />
+            </AttendanceProvider>
+          </JobProvider>
+        </AuthProvider>
+      </MotionConfig>
+    </AppErrorBoundary>
   );
 }

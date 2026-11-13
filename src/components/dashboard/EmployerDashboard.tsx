@@ -12,6 +12,7 @@ import { ChatCenter } from '../messaging/ChatCenter';
 import { NotificationCenter } from '../notifications/NotificationCenter';
 import { SlideSidebar } from '../navigation/SlideSidebar';
 import { SettingsView } from '../common/SettingsView';
+import { ChangeLocationModal } from '../common/ChangeLocationModal';
 import { WorkersNearMeView } from '../location/WorkersNearMeView';
 import { EmployerAttendanceView } from '../attendance/EmployerAttendanceView';
 import { HiringRequestsView } from '../hiring/HiringRequestsView';
@@ -73,7 +74,8 @@ import {
   HardHat,
   Save,
   X,
-  AlertTriangle
+  AlertTriangle,
+  Compass
 } from 'lucide-react';
 
 interface EmployerDashboardProps {
@@ -170,6 +172,8 @@ export const EmployerDashboard: React.FC<EmployerDashboardProps> = ({
   const [hiringTargetWorker, setHiringTargetWorker] = useState<WorkerProfile | null>(null);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isCollapsedDesktop, setIsCollapsedDesktop] = useState(false);
+  const [changeLocationOpen, setChangeLocationOpen] = useState(false);
+  const [locationUpdateNotice, setLocationUpdateNotice] = useState('');
 
   // Quick Inline Profile Editor state inside Company Profile Settings
   const [isQuickEditing, setIsQuickEditing] = useState(false);
@@ -769,6 +773,15 @@ export const EmployerDashboard: React.FC<EmployerDashboardProps> = ({
 
                     <button
                       type="button"
+                      onClick={() => setChangeLocationOpen(true)}
+                      className="py-2.5 px-4 rounded-2xl bg-black/20 hover:bg-black/30 text-white font-bold text-xs backdrop-blur-xs transition-all flex items-center gap-1.5 cursor-pointer"
+                    >
+                      <Compass className="w-3.5 h-3.5 text-amber-200" />
+                      <span>Change City</span>
+                    </button>
+
+                    <button
+                      type="button"
                       onClick={onEditProfile}
                       className="py-2.5 px-4 rounded-2xl bg-black/20 hover:bg-black/30 text-white font-bold text-xs backdrop-blur-xs transition-all flex items-center gap-1.5 cursor-pointer"
                     >
@@ -861,6 +874,14 @@ export const EmployerDashboard: React.FC<EmployerDashboardProps> = ({
                   <div className="flex flex-wrap items-center gap-2">
                     <button
                       type="button"
+                      onClick={() => setChangeLocationOpen(true)}
+                      className="px-4 py-2.5 rounded-xl bg-amber-50 hover:bg-amber-100 text-amber-900 border border-amber-200 font-bold text-xs transition-all flex items-center gap-1.5 cursor-pointer"
+                    >
+                      <Compass className="w-3.5 h-3.5 text-amber-600" />
+                      <span>Relocate / Change City</span>
+                    </button>
+                    <button
+                      type="button"
                       onClick={() => setActiveTab('profile')}
                       className="px-4 py-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs transition-all flex items-center gap-1.5 cursor-pointer"
                     >
@@ -881,6 +902,22 @@ export const EmployerDashboard: React.FC<EmployerDashboardProps> = ({
                     </button>
                   </div>
                 </div>
+
+                {locationUpdateNotice && (
+                  <div className="p-3.5 rounded-2xl bg-emerald-50 border border-emerald-200 text-emerald-900 text-xs font-bold flex items-center justify-between gap-2">
+                    <span className="flex items-center gap-2">
+                      <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+                      {locationUpdateNotice}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => setLocationUpdateNotice('')}
+                      className="text-emerald-700 hover:underline cursor-pointer"
+                    >
+                      Dismiss
+                    </button>
+                  </div>
+                )}
 
                 {/* Basic Details Grid */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -1586,6 +1623,15 @@ export const EmployerDashboard: React.FC<EmployerDashboardProps> = ({
                   <div className="flex flex-wrap items-center gap-2.5">
                     <button
                       type="button"
+                      onClick={() => setChangeLocationOpen(true)}
+                      className="px-4 py-2.5 rounded-2xl bg-amber-50 hover:bg-amber-100 text-amber-900 border border-amber-200 font-bold text-xs transition-all flex items-center gap-1.5 cursor-pointer"
+                    >
+                      <Compass className="w-4 h-4 text-amber-600" />
+                      <span>Change City</span>
+                    </button>
+
+                    <button
+                      type="button"
                       onClick={() => setIsQuickEditing(!isQuickEditing)}
                       className="px-4 py-2.5 rounded-2xl bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs transition-all flex items-center gap-2 cursor-pointer"
                     >
@@ -1607,6 +1653,22 @@ export const EmployerDashboard: React.FC<EmployerDashboardProps> = ({
                     </button>
                   </div>
                 </div>
+
+                {locationUpdateNotice && (
+                  <div className="p-4 rounded-2xl bg-emerald-50 border border-emerald-200 text-emerald-900 text-xs font-bold flex items-center justify-between">
+                    <span className="flex items-center gap-2">
+                      <MapPin className="w-4 h-4 text-emerald-600 shrink-0" />
+                      {locationUpdateNotice}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => setLocationUpdateNotice('')}
+                      className="text-emerald-700 hover:underline cursor-pointer"
+                    >
+                      Dismiss
+                    </button>
+                  </div>
+                )}
 
                 {/* INLINE QUICK EDIT FORM (Immediately saves to Firestore & localStorage) */}
                 {isQuickEditing && (
@@ -2307,6 +2369,18 @@ export const EmployerDashboard: React.FC<EmployerDashboardProps> = ({
             worker={hiringTargetWorker}
             isOpen={Boolean(hiringTargetWorker)}
             onClose={() => setHiringTargetWorker(null)}
+          />
+
+          {/* Change City / Relocation Modal */}
+          <ChangeLocationModal
+            isOpen={changeLocationOpen}
+            onClose={() => setChangeLocationOpen(false)}
+            role="employer"
+            onLocationUpdated={(summary) =>
+              setLocationUpdateNotice(
+                `Worksite location changed to ${summary}. Nearby worker discovery radar updated!`
+              )
+            }
           />
         </div>
       </div>

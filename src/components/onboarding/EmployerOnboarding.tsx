@@ -82,6 +82,7 @@ interface EmployerOnboardingProps {
   onComplete: () => void;
   onCancel: () => void;
   onExploreNearbyWorkers?: () => void;
+  initialStep?: number;
 }
 
 const TOTAL_STEPS = 11;
@@ -152,7 +153,8 @@ const INSURANCE_BENEFIT_OPTIONS = [
 export const EmployerOnboarding: React.FC<EmployerOnboardingProps> = ({
   onComplete,
   onCancel,
-  onExploreNearbyWorkers
+  onExploreNearbyWorkers,
+  initialStep = 1
 }) => {
   const {
     currentUser,
@@ -163,11 +165,15 @@ export const EmployerOnboarding: React.FC<EmployerOnboardingProps> = ({
   } = useAuth();
   const { myJobs, createJob } = useJobs();
 
-  const [currentStep, setCurrentStep] = useState<number>(1);
+  const [currentStep, setCurrentStep] = useState<number>(initialStep);
   const [submitting, setSubmitting] = useState(false);
   const [autosaving, setAutosaving] = useState(false);
   const [lastAutosavedAt, setLastAutosavedAt] = useState<string | null>(null);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+
+  useEffect(() => {
+    setCurrentStep(initialStep);
+  }, [initialStep]);
 
   // Camera capture for Owner Profile Photo
   const [cameraActive, setCameraActive] = useState(false);
@@ -1217,16 +1223,14 @@ export const EmployerOnboarding: React.FC<EmployerOnboardingProps> = ({
           </motion.div>
         )}
 
-        {/* Main Animated Step Card */}
-        <AnimatePresence mode="wait">
-          <motion.div
-            key={currentStep}
-            initial={{ opacity: 0, y: 14 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -14 }}
-            transition={{ duration: 0.25 }}
-            className="bg-white rounded-3xl p-6 sm:p-10 shadow-xl border border-slate-200/80"
-          >
+        {/* Main Step Card */}
+        <motion.div
+          key={currentStep}
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.2 }}
+          className="bg-white rounded-3xl p-6 sm:p-10 shadow-xl border border-slate-200/80"
+        >
             {/* ==================== STEP 1: WELCOME SCREEN ==================== */}
             {currentStep === 1 && (
               <div className="space-y-8">
@@ -1313,73 +1317,61 @@ export const EmployerOnboarding: React.FC<EmployerOnboardingProps> = ({
 
                   {/* Right Column: Indian Business Owner, Contractor & Factory Manager Visual Showcase */}
                   <div className="lg:col-span-6 space-y-3">
-                    <ImagePinningReveal>
-                      <div className="relative rounded-2xl overflow-hidden border border-slate-200 shadow-lg bg-slate-900 aspect-video">
-                        <AnimatedImage
-                          variant="splitReveal"
-                          src="/src/assets/images/indian_business_owner_hero_1794497708102.jpg"
-                          alt="Indian Business Owner, Construction Contractor, and Factory Manager"
-                          referrerPolicy="no-referrer"
-                          wrapperClassName="w-full h-full"
-                          className="w-full h-full object-cover"
-                        />
-                        <div className="absolute inset-0 bg-gradient-to-t from-slate-950/85 via-slate-950/25 to-transparent" />
-                        <div className="absolute bottom-3 left-4 right-4 text-white flex items-end justify-between gap-2">
-                          <div>
-                            <p className="text-[11px] font-bold text-amber-300">
-                              Trusted by Indian Enterprises, Contractors & MSMEs
-                            </p>
-                            <p className="text-sm font-black">
-                              Direct Recruitment Across 28 States & 8 UTs
-                            </p>
-                          </div>
-                          <span className="px-2.5 py-1 rounded-lg bg-white/15 backdrop-blur-md text-[11px] font-bold text-white shrink-0">
-                            Zero Middlemen
-                          </span>
+                    <div className="relative rounded-2xl overflow-hidden border border-slate-200 shadow-lg bg-slate-900 aspect-video">
+                      <img
+                        src="/src/assets/images/indian_business_owner_hero_1794497708102.jpg"
+                        alt="Indian Business Owner, Construction Contractor, and Factory Manager"
+                        referrerPolicy="no-referrer"
+                        className="w-full h-full object-cover"
+                      />
+                      <div className="absolute inset-0 bg-gradient-to-t from-slate-950/85 via-slate-950/25 to-transparent" />
+                      <div className="absolute bottom-3 left-4 right-4 text-white flex items-end justify-between gap-2">
+                        <div>
+                          <p className="text-[11px] font-bold text-amber-300">
+                            Trusted by Indian Enterprises, Contractors & MSMEs
+                          </p>
+                          <p className="text-sm font-black">
+                            Direct Recruitment Across 28 States & 8 UTs
+                          </p>
                         </div>
+                        <span className="px-2.5 py-1 rounded-lg bg-white/15 backdrop-blur-md text-[11px] font-bold text-white shrink-0">
+                          Zero Middlemen
+                        </span>
                       </div>
-                    </ImagePinningReveal>
+                    </div>
 
                     <div className="grid grid-cols-2 gap-3">
-                      <ProgressiveImageReveal>
-                        <div className="relative rounded-2xl overflow-hidden border border-slate-200 aspect-4/3 bg-slate-900">
-                          <AnimatedImage
-                            variant="tilt3d"
-                            src="/src/assets/images/indian_contractor_site_manager_1794497711200.jpg"
-                            alt="Indian Construction Contractor & Site Engineer"
-                            referrerPolicy="no-referrer"
-                            wrapperClassName="w-full h-full"
-                            className="w-full h-full object-cover"
-                          />
-                          <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent pointer-events-none" />
-                          <div className="absolute bottom-2.5 left-3 right-3 text-white pointer-events-none">
-                            <p className="text-xs font-bold">Construction & Infrastructure</p>
-                            <p className="text-[10px] text-slate-200">
-                              Contractors, Masons, Electricians & Crew
-                            </p>
-                          </div>
+                      <div className="relative rounded-2xl overflow-hidden border border-slate-200 aspect-4/3 bg-slate-900">
+                        <img
+                          src="/src/assets/images/indian_contractor_site_manager_1794497711200.jpg"
+                          alt="Indian Construction Contractor & Site Engineer"
+                          referrerPolicy="no-referrer"
+                          className="w-full h-full object-cover"
+                        />
+                        <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent pointer-events-none" />
+                        <div className="absolute bottom-2.5 left-3 right-3 text-white pointer-events-none">
+                          <p className="text-xs font-bold">Construction & Infrastructure</p>
+                          <p className="text-[10px] text-slate-200">
+                            Contractors, Masons, Electricians & Crew
+                          </p>
                         </div>
-                      </ProgressiveImageReveal>
+                      </div>
 
-                      <ProgressiveImageReveal>
-                        <div className="relative rounded-2xl overflow-hidden border border-slate-200 aspect-4/3 bg-slate-900">
-                          <AnimatedImage
-                            variant="tilt3d"
-                            src="/src/assets/images/indian_factory_enterprise_owner_1794497711280.jpg"
-                            alt="Indian Factory & Enterprise Manager"
-                            referrerPolicy="no-referrer"
-                            wrapperClassName="w-full h-full"
-                            className="w-full h-full object-cover"
-                          />
-                          <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent pointer-events-none" />
-                          <div className="absolute bottom-2.5 left-3 right-3 text-white pointer-events-none">
-                            <p className="text-xs font-bold">Manufacturing & Commercial</p>
-                            <p className="text-[10px] text-slate-200">
-                              Machine Operators, Supervisors & Staff
-                            </p>
-                          </div>
+                      <div className="relative rounded-2xl overflow-hidden border border-slate-200 aspect-4/3 bg-slate-900">
+                        <img
+                          src="/src/assets/images/indian_factory_enterprise_owner_1794497711280.jpg"
+                          alt="Indian Factory & Enterprise Manager"
+                          referrerPolicy="no-referrer"
+                          className="w-full h-full object-cover"
+                        />
+                        <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent pointer-events-none" />
+                        <div className="absolute bottom-2.5 left-3 right-3 text-white pointer-events-none">
+                          <p className="text-xs font-bold">Manufacturing & Commercial</p>
+                          <p className="text-[10px] text-slate-200">
+                            Machine Operators, Supervisors & Staff
+                          </p>
                         </div>
-                      </ProgressiveImageReveal>
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -3144,7 +3136,6 @@ export const EmployerOnboarding: React.FC<EmployerOnboardingProps> = ({
               </div>
             )}
           </motion.div>
-        </AnimatePresence>
       </div>
     </div>
   );
