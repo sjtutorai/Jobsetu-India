@@ -49,7 +49,7 @@ interface AuthContextType {
   setInitialRole: (role: UserRole) => Promise<void>;
   saveWorkerProfile: (profile: Omit<WorkerProfile, 'uid' | 'submittedAt' | 'updatedAt'>) => Promise<void>;
   saveDraftWorkerProfile: (partialProfile: Partial<WorkerProfile>) => Promise<void>;
-  saveEmployerProfile: (profile: Omit<EmployerProfile, 'uid' | 'submittedAt' | 'updatedAt' | 'verificationStatus' | 'emailVerified' | 'phoneVerified'>) => Promise<void>;
+  saveEmployerProfile: (profile: Omit<EmployerProfile, 'uid' | 'submittedAt' | 'updatedAt'>) => Promise<void>;
   saveDraftEmployerProfile: (partialProfile: Partial<EmployerProfile>) => Promise<void>;
   refreshProfile: () => Promise<void>;
 }
@@ -113,6 +113,27 @@ function stripUndefined<T extends Record<string, any>>(obj: T): Record<string, a
   return Object.fromEntries(Object.entries(obj).filter(([_, v]) => v !== undefined));
 }
 
+function mergePreservingNonEmpty<T extends Record<string, any>>(
+  base: Partial<T> | null | undefined,
+  incoming: Partial<T> | null | undefined
+): T {
+  const result: Record<string, any> = { ...(base || {}) };
+  if (!incoming) return result as T;
+  for (const [key, val] of Object.entries(incoming)) {
+    if (val === undefined || val === null) continue;
+    if (typeof val === 'string' && val.trim() === '' && typeof result[key] === 'string' && result[key].trim() !== '') {
+      // Keep non-empty base string if incoming is empty string
+      continue;
+    }
+    if (Array.isArray(val) && val.length === 0 && Array.isArray(result[key]) && result[key].length > 0) {
+      // Keep non-empty base array if incoming is empty array
+      continue;
+    }
+    result[key] = val;
+  }
+  return result as T;
+}
+
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [currentUser, setCurrentUser] = useState<FirebaseUser | null>(null);
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
@@ -122,6 +143,23 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [intendedRole, setIntendedRole] = useState<UserRole>(() => {
     return (localStorage.getItem('jobsetu_intended_role') as UserRole) || 'worker';
   });
+
+  // Live refs so async draft/profile saves never read stale React state closures
+  const userProfileRef = useRef<UserProfile | null>(null);
+  const workerProfileRef = useRef<WorkerProfile | null>(null);
+  const employerProfileRef = useRef<EmployerProfile | null>(null);
+
+  useEffect(() => {
+    userProfileRef.current = userProfile;
+  }, [userProfile]);
+
+  useEffect(() => {
+    workerProfileRef.current = workerProfile;
+  }, [workerProfile]);
+
+  useEffect(() => {
+    employerProfileRef.current = employerProfile;
+  }, [employerProfile]);
 
   // Guard ref so onAuthStateChanged does not race with explicit registerWithEmail / loginWithEmail
   const isManualAuthInProgress = useRef(false);
@@ -159,14 +197,29 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const cachedWorkerKey = `jobsetu_worker_${uid}`;
     const cachedEmployerKey = `jobsetu_employer_${uid}`;
 
+    let localCachedWorker: WorkerProfile | null = workerProfileRef.current?.uid === uid ? workerProfileRef.current : null;
+    let localCachedEmp: EmployerProfile | null = employerProfileRef.current?.uid === uid ? employerProfileRef.current : null;
+
     // Hydrate from local cache for this specific UID if available
     try {
       const cachedUser = localStorage.getItem(cachedUserKey);
-      if (cachedUser) setUserProfile(JSON.parse(cachedUser));
+      if (cachedUser) {
+        const parsedUser = JSON.parse(cachedUser);
+        setUserProfile(parsedUser);
+        userProfileRef.current = parsedUser;
+      }
       const cachedWorker = localStorage.getItem(cachedWorkerKey);
-      if (cachedWorker) setWorkerProfile(JSON.parse(cachedWorker));
+      if (cachedWorker) {
+        localCachedWorker = mergePreservingNonEmpty<WorkerProfile>(localCachedWorker, JSON.parse(cachedWorker));
+        setWorkerProfile(localCachedWorker);
+        workerProfileRef.current = localCachedWorker;
+      }
       const cachedEmp = localStorage.getItem(cachedEmployerKey);
-      if (cachedEmp) setEmployerProfile(JSON.parse(cachedEmp));
+      if (cachedEmp) {
+        localCachedEmp = mergePreservingNonEmpty<EmployerProfile>(localCachedEmp, JSON.parse(cachedEmp));
+        setEmployerProfile(localCachedEmp);
+        employerProfileRef.current = localCachedEmp;
+      }
     } catch {
       // ignore storage errors
     }
@@ -180,16 +233,29 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         console.warn('[JOBSETU] Warning fetching user document (using fast fallback):', err?.message);
       }
 
-      // Also fetch worker & employer profiles in parallel for this UID so we know what profiles exist
-      let fetchedWorker: WorkerProfile | null = null;
-      let fetchedEmployer: EmployerProfile | null = null;
+      // Also fetch worker (from workerProfiles or jobSeekers) & employer (from employerProfiles or employers) in parallel
+      let fetchedWorker: WorkerProfile | null = localCachedWorker;
+      let fetchedEmployer: EmployerProfile | null = localCachedEmp;
 
       await Promise.allSettled([
         withTimeout(getDoc(doc(db, 'workerProfiles', uid)), 3000)
           .then((wSnap) => {
             if (wSnap.exists()) {
-              fetchedWorker = wSnap.data() as WorkerProfile;
+              fetchedWorker = mergePreservingNonEmpty<WorkerProfile>(fetchedWorker, wSnap.data() as WorkerProfile);
               setWorkerProfile(fetchedWorker);
+              workerProfileRef.current = fetchedWorker;
+              try {
+                localStorage.setItem(cachedWorkerKey, JSON.stringify(fetchedWorker));
+              } catch {}
+            }
+          })
+          .catch(() => {}),
+        withTimeout(getDoc(doc(db, 'jobSeekers', uid)), 3000)
+          .then((jsSnap) => {
+            if (jsSnap.exists()) {
+              fetchedWorker = mergePreservingNonEmpty<WorkerProfile>(fetchedWorker, jsSnap.data() as WorkerProfile);
+              setWorkerProfile(fetchedWorker);
+              workerProfileRef.current = fetchedWorker;
               try {
                 localStorage.setItem(cachedWorkerKey, JSON.stringify(fetchedWorker));
               } catch {}
@@ -199,8 +265,21 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         withTimeout(getDoc(doc(db, 'employerProfiles', uid)), 3000)
           .then((eSnap) => {
             if (eSnap.exists()) {
-              fetchedEmployer = eSnap.data() as EmployerProfile;
+              fetchedEmployer = mergePreservingNonEmpty<EmployerProfile>(fetchedEmployer, eSnap.data() as EmployerProfile);
               setEmployerProfile(fetchedEmployer);
+              employerProfileRef.current = fetchedEmployer;
+              try {
+                localStorage.setItem(cachedEmployerKey, JSON.stringify(fetchedEmployer));
+              } catch {}
+            }
+          })
+          .catch(() => {}),
+        withTimeout(getDoc(doc(db, 'employers', uid)), 3000)
+          .then((empColSnap) => {
+            if (empColSnap.exists()) {
+              fetchedEmployer = mergePreservingNonEmpty<EmployerProfile>(fetchedEmployer, empColSnap.data() as EmployerProfile);
+              setEmployerProfile(fetchedEmployer);
+              employerProfileRef.current = fetchedEmployer;
               try {
                 localStorage.setItem(cachedEmployerKey, JSON.stringify(fetchedEmployer));
               } catch {}
@@ -453,56 +532,92 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   ) => {
     if (role === 'employer') {
       const empRef = doc(db, 'employerProfiles', uid);
-      const draftEmployer: Partial<EmployerProfile> = {
-        uid,
-        ownerName: name,
-        ownerEmail: email,
-        ownerPhone: phone || '',
-        designation: 'Proprietor / Business Owner',
-        businessName: '',
-        businessCategory: 'Coaching Classes / Education Institute',
-        state: '',
-        pincode: '',
-        verificationStatus: 'Pending',
-        emailVerified: true,
-        phoneVerified: Boolean(phone),
-        updatedAt: serverTimestamp()
-      };
-      setEmployerProfile((prev) => (prev ? { ...prev, ...draftEmployer } : (draftEmployer as EmployerProfile)));
+      const employersColRef = doc(db, 'employers', uid);
+      let existingEmp: Partial<EmployerProfile> | null = employerProfileRef.current?.uid === uid ? employerProfileRef.current : null;
+      try {
+        const raw = localStorage.getItem(`jobsetu_employer_${uid}`);
+        if (raw) {
+          existingEmp = mergePreservingNonEmpty<EmployerProfile>(existingEmp, JSON.parse(raw));
+        }
+      } catch {}
+
+      const draftEmployer: EmployerProfile = mergePreservingNonEmpty<EmployerProfile>(
+        {
+          uid,
+          ownerName: name,
+          ownerEmail: email,
+          ownerPhone: phone || '',
+          designation: 'Owner',
+          preferredLanguage: 'Hindi (हिन्दी)',
+          businessName: '',
+          businessCategory: 'Construction',
+          country: 'India',
+          state: '',
+          pincode: '',
+          discoveryRadiusKm: 50,
+          workforceTypesNeeded: ['Skilled Labour'],
+          verificationStatus: 'Verification Required',
+          emailVerified: true,
+          phoneVerified: Boolean(phone),
+          updatedAt: serverTimestamp()
+        },
+        existingEmp
+      );
+      setEmployerProfile(draftEmployer);
+      employerProfileRef.current = draftEmployer;
       try {
         localStorage.setItem(`jobsetu_employer_${uid}`, JSON.stringify(draftEmployer));
       } catch {}
-      await setDoc(empRef, stripUndefined(draftEmployer), { merge: true }).catch(() => {});
+      await Promise.allSettled([
+        setDoc(empRef, stripUndefined(draftEmployer), { merge: true }),
+        setDoc(employersColRef, stripUndefined(draftEmployer), { merge: true })
+      ]);
     } else {
       const workerRef = doc(db, 'workerProfiles', uid);
-      const draftWorker: Partial<WorkerProfile> = {
-        uid,
-        fullName: name,
-        phone: phone || '',
-        email: email || '',
-        ageEligibilityConfirmed: true,
-        gender: 'male',
-        country: 'India',
-        state: '',
-        pincode: '',
-        preferredLocations: [],
-        education: 'Higher secondary',
-        skills: [],
-        customSkills: [],
-        experience: 'Fresher',
-        jobPreferences: {
-          jobTypes: ['Full-time'],
-          expectedSalary: '',
-          availability: 'Immediate',
-          preferredLocations: []
+      const jobSeekerRef = doc(db, 'jobSeekers', uid);
+      let existingWorker: Partial<WorkerProfile> | null = workerProfileRef.current?.uid === uid ? workerProfileRef.current : null;
+      try {
+        const raw = localStorage.getItem(`jobsetu_worker_${uid}`);
+        if (raw) {
+          existingWorker = mergePreservingNonEmpty<WorkerProfile>(existingWorker, JSON.parse(raw));
+        }
+      } catch {}
+
+      const draftWorker: WorkerProfile = mergePreservingNonEmpty<WorkerProfile>(
+        {
+          uid,
+          fullName: name,
+          phone: phone || '',
+          email: email || '',
+          ageEligibilityConfirmed: true,
+          gender: 'male',
+          country: 'India',
+          state: '',
+          pincode: '',
+          preferredLocations: [],
+          education: 'Higher secondary',
+          skills: [],
+          customSkills: [],
+          experience: 'Fresher',
+          jobPreferences: {
+            jobTypes: ['Full-time'],
+            expectedSalary: '',
+            availability: 'Immediate',
+            preferredLocations: []
+          },
+          updatedAt: serverTimestamp()
         },
-        updatedAt: serverTimestamp()
-      };
-      setWorkerProfile((prev) => (prev ? { ...prev, ...draftWorker } : (draftWorker as WorkerProfile)));
+        existingWorker
+      );
+      setWorkerProfile(draftWorker);
+      workerProfileRef.current = draftWorker;
       try {
         localStorage.setItem(`jobsetu_worker_${uid}`, JSON.stringify(draftWorker));
       } catch {}
-      await setDoc(workerRef, stripUndefined(draftWorker), { merge: true }).catch(() => {});
+      await Promise.allSettled([
+        setDoc(workerRef, stripUndefined(draftWorker), { merge: true }),
+        setDoc(jobSeekerRef, stripUndefined(draftWorker), { merge: true })
+      ]);
     }
   };
 
@@ -556,6 +671,27 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         err?.code === 'auth/network-request-failed'
       ) {
         const safeUid = `usr_${cleanEmail.replace(/[^a-z0-9]/g, '_').slice(0, 48)}`;
+
+        // Duplicate account check in local & Firestore records
+        const existingAccounts = getStoredEmailAccounts();
+        if (existingAccounts[cleanEmail]) {
+          const dupErr: any = new Error('An account with this email address already exists. Please Sign In.');
+          dupErr.code = 'auth/email-already-in-use';
+          throw dupErr;
+        }
+        try {
+          const existingSnap = await withTimeout(getDoc(doc(db, 'users', safeUid)), 2000);
+          if (existingSnap.exists()) {
+            const dupErr: any = new Error('An account with this email address already exists. Please Sign In.');
+            dupErr.code = 'auth/email-already-in-use';
+            throw dupErr;
+          }
+        } catch (dupCheckErr: any) {
+          if (dupCheckErr?.code === 'auth/email-already-in-use') {
+            throw dupCheckErr;
+          }
+        }
+
         const accountRecord: StoredEmailAccount = {
           uid: safeUid,
           name: cleanName,
@@ -766,48 +902,89 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const saveDraftWorkerProfile = async (partialProfile: Partial<WorkerProfile>) => {
     if (!currentUser) return;
     const uid = currentUser.uid;
+    const currentWorker = workerProfileRef.current;
+    const currentUserProf = userProfileRef.current;
+
     const merged: WorkerProfile = {
+      ...(currentWorker || {}),
+      ...partialProfile,
       uid,
-      fullName: partialProfile.fullName ?? workerProfile?.fullName ?? userProfile?.name ?? '',
-      phone: partialProfile.phone ?? workerProfile?.phone ?? userProfile?.phone ?? '',
-      email: partialProfile.email ?? workerProfile?.email ?? userProfile?.email ?? currentUser.email ?? '',
-      dateOfBirth: partialProfile.dateOfBirth ?? workerProfile?.dateOfBirth ?? '',
-      ageEligibilityConfirmed: partialProfile.ageEligibilityConfirmed ?? workerProfile?.ageEligibilityConfirmed ?? true,
-      gender: partialProfile.gender ?? workerProfile?.gender ?? 'male',
-      profilePhoto: partialProfile.profilePhoto ?? workerProfile?.profilePhoto ?? userProfile?.profilePhoto ?? '',
-      isPhotoVerifiedReal: partialProfile.isPhotoVerifiedReal ?? workerProfile?.isPhotoVerifiedReal ?? true,
+      fullName: partialProfile.fullName ?? currentWorker?.fullName ?? currentUserProf?.name ?? '',
+      phone: partialProfile.phone ?? currentWorker?.phone ?? currentUserProf?.phone ?? '',
+      email: partialProfile.email ?? currentWorker?.email ?? currentUserProf?.email ?? currentUser.email ?? '',
+      dateOfBirth: partialProfile.dateOfBirth ?? currentWorker?.dateOfBirth ?? '',
+      ageEligibilityConfirmed: partialProfile.ageEligibilityConfirmed ?? currentWorker?.ageEligibilityConfirmed ?? true,
+      gender: partialProfile.gender ?? currentWorker?.gender ?? 'male',
+      profilePhoto: partialProfile.profilePhoto ?? currentWorker?.profilePhoto ?? currentUserProf?.profilePhoto ?? '',
+      isPhotoVerifiedReal: partialProfile.isPhotoVerifiedReal ?? currentWorker?.isPhotoVerifiedReal ?? true,
+      currentAddress: partialProfile.currentAddress ?? currentWorker?.currentAddress ?? '',
       country: 'India',
-      state: partialProfile.state ?? workerProfile?.state ?? '',
-      district: partialProfile.district ?? workerProfile?.district ?? '',
-      city: partialProfile.city ?? workerProfile?.city ?? '',
-      area: partialProfile.area ?? workerProfile?.area ?? '',
-      pincode: partialProfile.pincode ?? workerProfile?.pincode ?? '',
-      lat: partialProfile.lat ?? workerProfile?.lat,
-      lng: partialProfile.lng ?? workerProfile?.lng,
-      preferredLocations: partialProfile.preferredLocations ?? workerProfile?.preferredLocations ?? [],
-      education: partialProfile.education ?? workerProfile?.education ?? 'Higher secondary',
-      skills: partialProfile.skills ?? workerProfile?.skills ?? [],
-      customSkills: partialProfile.customSkills ?? workerProfile?.customSkills ?? [],
-      experience: partialProfile.experience ?? workerProfile?.experience ?? 'Fresher',
-      jobPreferences: partialProfile.jobPreferences ?? workerProfile?.jobPreferences ?? {
+      state: partialProfile.state ?? currentWorker?.state ?? '',
+      district: partialProfile.district ?? currentWorker?.district ?? '',
+      city: partialProfile.city ?? currentWorker?.city ?? '',
+      area: partialProfile.area ?? currentWorker?.area ?? '',
+      pincode: partialProfile.pincode ?? currentWorker?.pincode ?? '',
+      lat: partialProfile.lat ?? currentWorker?.lat,
+      lng: partialProfile.lng ?? currentWorker?.lng,
+      preferredLanguage: partialProfile.preferredLanguage ?? currentWorker?.preferredLanguage ?? currentUserProf?.preferredLanguage ?? 'Hindi (हिन्दी)',
+      emergencyContactName: partialProfile.emergencyContactName ?? currentWorker?.emergencyContactName ?? '',
+      emergencyContactPhone: partialProfile.emergencyContactPhone ?? currentWorker?.emergencyContactPhone ?? '',
+      emergencyContactRelation: partialProfile.emergencyContactRelation ?? currentWorker?.emergencyContactRelation ?? '',
+      preferredLocations: partialProfile.preferredLocations ?? currentWorker?.preferredLocations ?? [],
+      education: partialProfile.education ?? currentWorker?.education ?? 'Higher secondary',
+      schoolOrCollegeName: partialProfile.schoolOrCollegeName ?? currentWorker?.schoolOrCollegeName ?? '',
+      passingYear: partialProfile.passingYear ?? currentWorker?.passingYear ?? '',
+      additionalQualifications: partialProfile.additionalQualifications ?? currentWorker?.additionalQualifications ?? '',
+      educationCertificates: partialProfile.educationCertificates ?? currentWorker?.educationCertificates ?? [],
+      selectedProfessions: partialProfile.selectedProfessions ?? currentWorker?.selectedProfessions ?? [],
+      customProfession: partialProfile.customProfession ?? currentWorker?.customProfession ?? '',
+      skills: partialProfile.skills ?? currentWorker?.skills ?? [],
+      customSkills: partialProfile.customSkills ?? currentWorker?.customSkills ?? [],
+      experience: partialProfile.experience ?? currentWorker?.experience ?? 'Fresher',
+      previousCompanyName: partialProfile.previousCompanyName ?? currentWorker?.previousCompanyName ?? '',
+      previousJobRole: partialProfile.previousJobRole ?? currentWorker?.previousJobRole ?? '',
+      workPortfolioUrl: partialProfile.workPortfolioUrl ?? currentWorker?.workPortfolioUrl ?? '',
+      workPortfolioDescription: partialProfile.workPortfolioDescription ?? currentWorker?.workPortfolioDescription ?? '',
+      workPortfolioImages: partialProfile.workPortfolioImages ?? currentWorker?.workPortfolioImages ?? [],
+      skillCertificates: partialProfile.skillCertificates ?? currentWorker?.skillCertificates ?? [],
+      jobPreferences: partialProfile.jobPreferences ?? currentWorker?.jobPreferences ?? {
         jobTypes: ['Full-time'],
         expectedSalary: '₹15,000 - ₹25,000 / month',
+        expectedDailyWage: '₹600 - ₹900 / day',
+        preferredWorkingHours: '8 Hours Standard (Day Shift)',
+        preferredSearchRadiusKm: 50,
         availability: 'Immediate',
-        preferredLocations: []
+        preferredLocations: [],
+        willingToRelocate: false,
+        accommodationRequired: false
       },
+      resumeUrl: partialProfile.resumeUrl ?? currentWorker?.resumeUrl ?? '',
+      resumeName: partialProfile.resumeName ?? currentWorker?.resumeName ?? '',
+      identityVerificationProvider: partialProfile.identityVerificationProvider ?? currentWorker?.identityVerificationProvider ?? '',
+      identityVerifiedMask: partialProfile.identityVerifiedMask ?? currentWorker?.identityVerifiedMask ?? '',
+      identityVerificationStatus: partialProfile.identityVerificationStatus ?? currentWorker?.identityVerificationStatus ?? 'Not Started',
+      digilockerLinked: partialProfile.digilockerLinked ?? currentWorker?.digilockerLinked ?? false,
+      digilockerSharedDocs: partialProfile.digilockerSharedDocs ?? currentWorker?.digilockerSharedDocs ?? [],
+      mobileOtpVerified: partialProfile.mobileOtpVerified ?? currentWorker?.mobileOtpVerified ?? false,
+      emailVerified: partialProfile.emailVerified ?? currentWorker?.emailVerified ?? true,
+      profileCompletionPercentage: partialProfile.profileCompletionPercentage ?? currentWorker?.profileCompletionPercentage ?? 35,
       updatedAt: serverTimestamp()
     };
 
     setWorkerProfile(merged);
-    if (merged.fullName || merged.phone || merged.profilePhoto) {
+    workerProfileRef.current = merged;
+
+    if (merged.fullName || merged.phone || merged.profilePhoto || merged.preferredLanguage) {
       setUserProfile((prev) => {
         if (!prev) return prev;
         const next = {
           ...prev,
           name: merged.fullName || prev.name,
           phone: merged.phone || prev.phone,
-          profilePhoto: merged.profilePhoto || prev.profilePhoto
+          profilePhoto: merged.profilePhoto || prev.profilePhoto,
+          preferredLanguage: merged.preferredLanguage || prev.preferredLanguage
         };
+        userProfileRef.current = next;
         try {
           localStorage.setItem(`jobsetu_user_${uid}`, JSON.stringify(next));
         } catch {}
@@ -820,6 +997,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     await Promise.allSettled([
       withTimeout(setDoc(doc(db, 'workerProfiles', uid), stripUndefined(merged), { merge: true }), 2500),
+      withTimeout(setDoc(doc(db, 'jobSeekers', uid), stripUndefined(merged), { merge: true }), 2500),
       withTimeout(
         setDoc(
           doc(db, 'users', uid),
@@ -827,6 +1005,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             name: merged.fullName || undefined,
             phone: merged.phone || undefined,
             profilePhoto: merged.profilePhoto || undefined,
+            preferredLanguage: merged.preferredLanguage || undefined,
             updatedAt: serverTimestamp()
           }),
           { merge: true }
@@ -839,6 +1018,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const saveWorkerProfile = async (profileData: Omit<WorkerProfile, 'uid' | 'submittedAt' | 'updatedAt'>) => {
     if (!currentUser) throw new Error('You must be logged in to save a profile.');
     const workerRef = doc(db, 'workerProfiles', currentUser.uid);
+    const jobSeekerRef = doc(db, 'jobSeekers', currentUser.uid);
     const fullWorkerData: WorkerProfile = {
       ...profileData,
       uid: currentUser.uid,
@@ -854,6 +1034,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             name: profileData.fullName,
             phone: profileData.phone || prev.phone,
             profilePhoto: profileData.profilePhoto || prev.profilePhoto,
+            preferredLanguage: profileData.preferredLanguage || prev.preferredLanguage,
             onboardingCompleted: true
           }
         : null;
@@ -871,6 +1052,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const userRef = doc(db, 'users', currentUser.uid);
     await Promise.allSettled([
       withTimeout(setDoc(workerRef, stripUndefined(fullWorkerData), { merge: true }), 3000),
+      withTimeout(setDoc(jobSeekerRef, stripUndefined(fullWorkerData), { merge: true }), 3000),
       withTimeout(
         setDoc(
           userRef,
@@ -878,6 +1060,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             name: profileData.fullName,
             phone: profileData.phone || userProfile?.phone || '',
             profilePhoto: profileData.profilePhoto || userProfile?.profilePhoto || '',
+            preferredLanguage: profileData.preferredLanguage || userProfile?.preferredLanguage || 'English',
             onboardingCompleted: true,
             updatedAt: serverTimestamp()
           }),
@@ -891,45 +1074,79 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const saveDraftEmployerProfile = async (partialProfile: Partial<EmployerProfile>) => {
     if (!currentUser) return;
     const uid = currentUser.uid;
+    const currentEmp = employerProfileRef.current;
+    const currentUserProf = userProfileRef.current;
+
     const merged: EmployerProfile = {
+      ...(currentEmp || {}),
+      ...partialProfile,
       uid,
-      ownerName: partialProfile.ownerName ?? employerProfile?.ownerName ?? userProfile?.name ?? '',
-      ownerEmail: partialProfile.ownerEmail ?? employerProfile?.ownerEmail ?? userProfile?.email ?? currentUser.email ?? '',
-      ownerPhone: partialProfile.ownerPhone ?? employerProfile?.ownerPhone ?? userProfile?.phone ?? '',
-      designation: partialProfile.designation ?? employerProfile?.designation ?? 'Proprietor / Business Owner',
-      businessName: partialProfile.businessName ?? employerProfile?.businessName ?? '',
-      businessCategory: partialProfile.businessCategory ?? employerProfile?.businessCategory ?? 'Coaching Classes / Education Institute',
-      businessDescription: partialProfile.businessDescription ?? employerProfile?.businessDescription ?? '',
-      businessLogo: partialProfile.businessLogo ?? employerProfile?.businessLogo ?? '',
-      businessImages: partialProfile.businessImages ?? employerProfile?.businessImages ?? [],
-      boardGstinVerifiedByAI: partialProfile.boardGstinVerifiedByAI ?? employerProfile?.boardGstinVerifiedByAI ?? false,
-      aiBoardVerificationSummary: partialProfile.aiBoardVerificationSummary ?? employerProfile?.aiBoardVerificationSummary ?? '',
-      website: partialProfile.website ?? employerProfile?.website ?? '',
-      state: partialProfile.state ?? employerProfile?.state ?? '',
-      district: partialProfile.district ?? employerProfile?.district ?? '',
-      city: partialProfile.city ?? employerProfile?.city ?? '',
-      area: partialProfile.area ?? employerProfile?.area ?? '',
-      pincode: partialProfile.pincode ?? employerProfile?.pincode ?? '',
-      lat: partialProfile.lat ?? employerProfile?.lat,
-      lng: partialProfile.lng ?? employerProfile?.lng,
-      businessAddress: partialProfile.businessAddress ?? employerProfile?.businessAddress ?? '',
-      documentNumber: partialProfile.documentNumber ?? employerProfile?.documentNumber ?? '',
-      verificationStatus: employerProfile?.verificationStatus || 'Pending',
-      emailVerified: Boolean(currentUser.emailVerified),
-      phoneVerified: Boolean(partialProfile.ownerPhone || employerProfile?.ownerPhone || currentUser.phoneNumber),
+      ownerName: partialProfile.ownerName ?? currentEmp?.ownerName ?? currentUserProf?.name ?? '',
+      ownerProfilePhoto: partialProfile.ownerProfilePhoto ?? currentEmp?.ownerProfilePhoto ?? currentUserProf?.profilePhoto ?? '',
+      ownerEmail: partialProfile.ownerEmail ?? currentEmp?.ownerEmail ?? currentUserProf?.email ?? currentUser.email ?? '',
+      ownerPhone: partialProfile.ownerPhone ?? currentEmp?.ownerPhone ?? currentUserProf?.phone ?? '',
+      designation: partialProfile.designation ?? currentEmp?.designation ?? 'Owner',
+      preferredLanguage: partialProfile.preferredLanguage ?? currentEmp?.preferredLanguage ?? currentUserProf?.preferredLanguage ?? 'Hindi (हिन्दी)',
+      ownerContactAddress: partialProfile.ownerContactAddress ?? currentEmp?.ownerContactAddress ?? '',
+      businessName: partialProfile.businessName ?? currentEmp?.businessName ?? '',
+      businessLogo: partialProfile.businessLogo ?? currentEmp?.businessLogo ?? '',
+      businessCategory: partialProfile.businessCategory ?? currentEmp?.businessCategory ?? 'Construction',
+      businessDescription: partialProfile.businessDescription ?? currentEmp?.businessDescription ?? '',
+      yearOfEstablishment: partialProfile.yearOfEstablishment ?? currentEmp?.yearOfEstablishment ?? '',
+      companySize: partialProfile.companySize ?? currentEmp?.companySize ?? '11–50 Employees',
+      companyRegistrationType: partialProfile.companyRegistrationType ?? currentEmp?.companyRegistrationType ?? 'Sole Proprietorship',
+      documentNumber: partialProfile.documentNumber ?? currentEmp?.documentNumber ?? '',
+      website: partialProfile.website ?? currentEmp?.website ?? '',
+      companyRegistrationDocuments: partialProfile.companyRegistrationDocuments ?? currentEmp?.companyRegistrationDocuments ?? [],
+      businessImages: partialProfile.businessImages ?? currentEmp?.businessImages ?? [],
+      boardGstinVerifiedByAI: partialProfile.boardGstinVerifiedByAI ?? currentEmp?.boardGstinVerifiedByAI ?? false,
+      aiBoardVerificationSummary: partialProfile.aiBoardVerificationSummary ?? currentEmp?.aiBoardVerificationSummary ?? '',
+      country: partialProfile.country ?? currentEmp?.country ?? 'India',
+      state: partialProfile.state ?? currentEmp?.state ?? '',
+      district: partialProfile.district ?? currentEmp?.district ?? '',
+      city: partialProfile.city ?? currentEmp?.city ?? '',
+      area: partialProfile.area ?? currentEmp?.area ?? '',
+      businessAddress: partialProfile.businessAddress ?? currentEmp?.businessAddress ?? '',
+      pincode: partialProfile.pincode ?? currentEmp?.pincode ?? '',
+      worksiteLocation: partialProfile.worksiteLocation ?? currentEmp?.worksiteLocation ?? '',
+      lat: partialProfile.lat ?? currentEmp?.lat,
+      lng: partialProfile.lng ?? currentEmp?.lng,
+      multipleWorkLocations: partialProfile.multipleWorkLocations ?? currentEmp?.multipleWorkLocations ?? [],
+      discoveryRadiusKm: partialProfile.discoveryRadiusKm ?? currentEmp?.discoveryRadiusKm ?? 50,
+      workforceTypesNeeded: partialProfile.workforceTypesNeeded ?? currentEmp?.workforceTypesNeeded ?? [],
+      labourRequirementDetails: partialProfile.labourRequirementDetails ?? currentEmp?.labourRequirementDetails,
+      salaryAndBenefits: partialProfile.salaryAndBenefits ?? currentEmp?.salaryAndBenefits,
+      workingConditions: partialProfile.workingConditions ?? currentEmp?.workingConditions,
+      hiringPreferences: partialProfile.hiringPreferences ?? currentEmp?.hiringPreferences,
+      mobileOtpVerified: partialProfile.mobileOtpVerified ?? currentEmp?.mobileOtpVerified ?? false,
+      emailVerified: partialProfile.emailVerified ?? currentEmp?.emailVerified ?? Boolean(currentUser.emailVerified),
+      phoneVerified: Boolean(partialProfile.mobileOtpVerified || currentEmp?.mobileOtpVerified || partialProfile.ownerPhone || currentEmp?.ownerPhone || currentUser.phoneNumber),
+      companyDocumentVerified: partialProfile.companyDocumentVerified ?? currentEmp?.companyDocumentVerified ?? false,
+      gstinVerified: partialProfile.gstinVerified ?? currentEmp?.gstinVerified ?? false,
+      authorizedVerificationProvider: partialProfile.authorizedVerificationProvider ?? currentEmp?.authorizedVerificationProvider ?? '',
+      authorizedVerificationRef: partialProfile.authorizedVerificationRef ?? currentEmp?.authorizedVerificationRef ?? '',
+      verificationStatus:
+        partialProfile.verificationStatus ??
+        currentEmp?.verificationStatus ??
+        'Verification Required',
+      profileCompletionPercentage: partialProfile.profileCompletionPercentage ?? currentEmp?.profileCompletionPercentage ?? 35,
       updatedAt: serverTimestamp()
     };
 
     setEmployerProfile(merged);
-    if (merged.ownerName || merged.ownerPhone || merged.businessLogo) {
+    employerProfileRef.current = merged;
+
+    if (merged.ownerName || merged.ownerPhone || merged.businessLogo || merged.ownerProfilePhoto || merged.preferredLanguage) {
       setUserProfile((prev) => {
         if (!prev) return prev;
         const next = {
           ...prev,
           name: merged.ownerName || prev.name,
           phone: merged.ownerPhone || prev.phone,
-          profilePhoto: merged.businessLogo || prev.profilePhoto
+          profilePhoto: merged.businessLogo || merged.ownerProfilePhoto || prev.profilePhoto,
+          preferredLanguage: merged.preferredLanguage || prev.preferredLanguage
         };
+        userProfileRef.current = next;
         try {
           localStorage.setItem(`jobsetu_user_${uid}`, JSON.stringify(next));
         } catch {}
@@ -938,17 +1155,21 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
     try {
       localStorage.setItem(`jobsetu_employer_${uid}`, JSON.stringify(merged));
-    } catch {}
+    } catch (storageErr) {
+      console.warn('[JOBSETU] Notice saving employer cache to localStorage:', storageErr);
+    }
 
     await Promise.allSettled([
       withTimeout(setDoc(doc(db, 'employerProfiles', uid), stripUndefined(merged), { merge: true }), 2500),
+      withTimeout(setDoc(doc(db, 'employers', uid), stripUndefined(merged), { merge: true }), 2500),
       withTimeout(
         setDoc(
           doc(db, 'users', uid),
           stripUndefined({
             name: merged.ownerName || undefined,
             phone: merged.ownerPhone || undefined,
-            profilePhoto: merged.businessLogo || undefined,
+            profilePhoto: merged.businessLogo || merged.ownerProfilePhoto || undefined,
+            preferredLanguage: merged.preferredLanguage || undefined,
             updatedAt: serverTimestamp()
           }),
           { merge: true }
@@ -959,32 +1180,56 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const saveEmployerProfile = async (
-    profileData: Omit<EmployerProfile, 'uid' | 'submittedAt' | 'updatedAt' | 'verificationStatus' | 'emailVerified' | 'phoneVerified'>
+    profileData: Omit<EmployerProfile, 'uid' | 'submittedAt' | 'updatedAt'>
   ) => {
     if (!currentUser) throw new Error('You must be logged in to save an employer profile.');
     const empRef = doc(db, 'employerProfiles', currentUser.uid);
+    const employersColRef = doc(db, 'employers', currentUser.uid);
+
+    // Never represent an employer as Verified unless verification succeeded
+    const isFullyVerified = Boolean(
+      profileData.mobileOtpVerified &&
+        (profileData.gstinVerified ||
+          profileData.companyDocumentVerified ||
+          profileData.boardGstinVerifiedByAI)
+    );
+    const hasSubmittedDocsOrGstin = Boolean(
+      profileData.documentNumber ||
+        (profileData.companyRegistrationDocuments && profileData.companyRegistrationDocuments.length > 0) ||
+        (profileData.businessImages && profileData.businessImages.length > 0)
+    );
+    const computedVerificationStatus = isFullyVerified
+      ? 'Verified'
+      : hasSubmittedDocsOrGstin
+      ? 'Pending Verification'
+      : 'Verification Required';
+
     const fullEmployerData: EmployerProfile = {
       ...profileData,
       uid: currentUser.uid,
-      verificationStatus: 'Pending',
-      emailVerified: !!currentUser.emailVerified,
-      phoneVerified: !!(profileData.ownerPhone || currentUser.phoneNumber),
+      verificationStatus: computedVerificationStatus,
+      emailVerified: profileData.emailVerified ?? !!currentUser.emailVerified,
+      phoneVerified: !!(profileData.mobileOtpVerified || profileData.ownerPhone || currentUser.phoneNumber),
       submittedAt: serverTimestamp(),
       updatedAt: serverTimestamp()
     };
 
     setEmployerProfile(fullEmployerData);
+    employerProfileRef.current = fullEmployerData;
+
     setUserProfile((prev) => {
       const next = prev
         ? {
             ...prev,
             name: profileData.ownerName,
             phone: profileData.ownerPhone || prev.phone,
-            profilePhoto: profileData.businessLogo || prev.profilePhoto,
+            profilePhoto: profileData.businessLogo || profileData.ownerProfilePhoto || prev.profilePhoto,
+            preferredLanguage: profileData.preferredLanguage || prev.preferredLanguage,
             onboardingCompleted: true
           }
         : null;
       if (next) {
+        userProfileRef.current = next;
         try {
           localStorage.setItem(`jobsetu_user_${currentUser.uid}`, JSON.stringify(next));
         } catch {}
@@ -993,18 +1238,22 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     });
     try {
       localStorage.setItem(`jobsetu_employer_${currentUser.uid}`, JSON.stringify(fullEmployerData));
-    } catch {}
+    } catch (storageErr) {
+      console.warn('[JOBSETU] Notice saving employer profile to localStorage:', storageErr);
+    }
 
     const userRef = doc(db, 'users', currentUser.uid);
     await Promise.allSettled([
       withTimeout(setDoc(empRef, stripUndefined(fullEmployerData), { merge: true }), 3000),
+      withTimeout(setDoc(employersColRef, stripUndefined(fullEmployerData), { merge: true }), 3000),
       withTimeout(
         setDoc(
           userRef,
           stripUndefined({
             name: profileData.ownerName,
             phone: profileData.ownerPhone || userProfile?.phone || '',
-            profilePhoto: profileData.businessLogo || userProfile?.profilePhoto || '',
+            profilePhoto: profileData.businessLogo || profileData.ownerProfilePhoto || userProfile?.profilePhoto || '',
+            preferredLanguage: profileData.preferredLanguage || userProfile?.preferredLanguage || 'English',
             onboardingCompleted: true,
             updatedAt: serverTimestamp()
           }),

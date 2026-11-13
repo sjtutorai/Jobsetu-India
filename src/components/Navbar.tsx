@@ -15,6 +15,8 @@ import {
   Navigation
 } from 'lucide-react';
 import { UserRole } from '../types';
+import { motion, AnimatePresence } from 'motion/react';
+import { AnimatedImage, MagneticButton, RippleContainer, RippleRadarPulse } from './animations';
 
 interface NavbarProps {
   onOpenAuth: (role?: UserRole, mode?: 'signin' | 'signup') => void;
@@ -59,7 +61,12 @@ export const Navbar: React.FC<NavbarProps> = ({
   };
 
   return (
-    <header className="sticky top-0 z-40 bg-white/95 backdrop-blur-md border-b border-gray-100 shadow-xs">
+    <motion.header
+      initial={{ y: -16, opacity: 0 }}
+      animate={{ y: 0, opacity: 1 }}
+      transition={{ duration: 0.45, ease: [0.22, 1, 0.36, 1] }}
+      className="sticky top-0 z-40 bg-white/95 backdrop-blur-md border-b border-gray-100 shadow-xs"
+    >
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-20">
           {/* Logo & Brand */}
@@ -67,7 +74,8 @@ export const Navbar: React.FC<NavbarProps> = ({
             onClick={onGoHome}
             className="flex items-center gap-3 cursor-pointer group select-none"
           >
-            <img
+            <AnimatedImage
+              variant="tilt3d"
               src="https://i.ibb.co/jv67DNGx/Jobsetulogo.png"
               alt="JOBSETU"
               className="h-12 w-auto object-contain group-hover:scale-105 transition-transform drop-shadow-sm"
@@ -91,32 +99,37 @@ export const Navbar: React.FC<NavbarProps> = ({
           <nav className="hidden md:flex items-center gap-6 text-sm font-semibold text-[#111827]">
             <button
               onClick={onGoHome}
-              className="text-[#2563EB] hover:text-blue-700 transition-colors cursor-pointer"
+              className="text-[#2563EB] hover:text-blue-700 transition-colors cursor-pointer jobsetu-nav-underline"
             >
               Home
             </button>
-            <button
-              onClick={onOpen50KmRadius}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200 font-bold text-xs transition-all cursor-pointer shadow-2xs"
-            >
-              <Navigation className="w-3.5 h-3.5 text-emerald-600" />
-              <span>50 KM Radius</span>
-            </button>
+            <RippleContainer className="rounded-xl">
+              <button
+                onClick={onOpen50KmRadius}
+                className="relative inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200 font-bold text-xs transition-all cursor-pointer shadow-2xs jobsetu-liquid-btn"
+              >
+                <span className="relative flex items-center justify-center">
+                  <RippleRadarPulse />
+                  <Navigation className="w-3.5 h-3.5 text-emerald-600 relative z-10" />
+                </span>
+                <span>50 KM Radius</span>
+              </button>
+            </RippleContainer>
             <button
               onClick={() => onOpenModal('about')}
-              className="text-[#6B7280] hover:text-[#111827] transition-colors cursor-pointer"
+              className="text-[#6B7280] hover:text-[#111827] transition-colors cursor-pointer jobsetu-nav-underline"
             >
               About Us
             </button>
             <button
               onClick={() => onOpenModal('how-it-works')}
-              className="text-[#6B7280] hover:text-[#111827] transition-colors cursor-pointer"
+              className="text-[#6B7280] hover:text-[#111827] transition-colors cursor-pointer jobsetu-nav-underline"
             >
               How It Works
             </button>
             <button
               onClick={() => onOpenModal('contact')}
-              className="text-[#6B7280] hover:text-[#111827] transition-colors cursor-pointer"
+              className="text-[#6B7280] hover:text-[#111827] transition-colors cursor-pointer jobsetu-nav-underline"
             >
               Contact
             </button>
@@ -190,11 +203,16 @@ export const Navbar: React.FC<NavbarProps> = ({
                 </div>
 
                 {/* Dropdown Menu */}
-                {dropdownOpen && (
-                  <div
-                    className="absolute right-0 mt-2 w-72 bg-white rounded-2xl shadow-2xl border border-gray-100 py-2.5 z-50 animate-in fade-in slide-in-from-top-2 duration-150"
-                    onMouseLeave={() => setDropdownOpen(false)}
-                  >
+                <AnimatePresence>
+                  {dropdownOpen && (
+                    <motion.div
+                      initial={{ opacity: 0, y: -10, scale: 0.96 }}
+                      animate={{ opacity: 1, y: 0, scale: 1 }}
+                      exit={{ opacity: 0, y: -8, scale: 0.96 }}
+                      transition={{ type: 'spring', stiffness: 320, damping: 24 }}
+                      className="absolute right-0 mt-2 w-72 bg-white rounded-2xl shadow-2xl border border-gray-100 py-2.5 z-50"
+                      onMouseLeave={() => setDropdownOpen(false)}
+                    >
                     <div className="px-4 py-3 border-b border-gray-100">
                       <p className="text-sm font-bold text-gray-900 truncate">{userProfile.name}</p>
                       <p className="text-xs text-gray-500 truncate">{userProfile.email || userProfile.phone || 'Jobsetu Account'}</p>
@@ -296,23 +314,28 @@ export const Navbar: React.FC<NavbarProps> = ({
                         Sign Out
                       </button>
                     </div>
-                  </div>
+                  </motion.div>
                 )}
+                </AnimatePresence>
               </div>
             ) : (
               <div className="flex items-center gap-3">
                 <button
                   onClick={() => onOpenAuth(undefined, 'signin')}
-                  className="px-4 py-2 text-sm font-semibold text-gray-700 hover:text-[#2563EB] transition-colors cursor-pointer"
+                  className="px-4 py-2 text-sm font-semibold text-gray-700 hover:text-[#2563EB] transition-colors cursor-pointer jobsetu-nav-underline"
                 >
                   Sign In
                 </button>
-                <button
-                  onClick={() => onOpenAuth(undefined, 'signup')}
-                  className="px-5 py-2.5 rounded-xl bg-[#2563EB] hover:bg-blue-700 text-white text-sm font-bold shadow-md shadow-blue-500/20 transition-all hover:-translate-y-0.5 cursor-pointer"
-                >
-                  Create Account
-                </button>
+                <MagneticButton>
+                  <RippleContainer className="rounded-xl">
+                    <button
+                      onClick={() => onOpenAuth(undefined, 'signup')}
+                      className="px-5 py-2.5 rounded-xl bg-[#2563EB] hover:bg-blue-700 text-white text-sm font-bold shadow-md shadow-blue-500/20 transition-all hover:-translate-y-0.5 cursor-pointer jobsetu-liquid-btn"
+                    >
+                      Create Account
+                    </button>
+                  </RippleContainer>
+                </MagneticButton>
               </div>
             )}
           </div>
@@ -346,8 +369,15 @@ export const Navbar: React.FC<NavbarProps> = ({
       </div>
 
       {/* Mobile Drawer */}
+      <AnimatePresence>
       {mobileMenuOpen && (
-        <div className="md:hidden border-t border-gray-100 bg-white px-4 pt-3 pb-6 space-y-4 shadow-lg">
+        <motion.div
+          initial={{ opacity: 0, height: 0 }}
+          animate={{ opacity: 1, height: 'auto' }}
+          exit={{ opacity: 0, height: 0 }}
+          transition={{ duration: 0.25, ease: [0.22, 1, 0.36, 1] }}
+          className="md:hidden border-t border-gray-100 bg-white px-4 pt-3 pb-6 space-y-4 shadow-lg overflow-hidden"
+        >
           <div className="flex flex-col space-y-2 text-sm font-semibold">
             <button
               onClick={() => {
@@ -477,8 +507,9 @@ export const Navbar: React.FC<NavbarProps> = ({
               </button>
             </div>
           )}
-        </div>
+        </motion.div>
       )}
-    </header>
+      </AnimatePresence>
+    </motion.header>
   );
 };

@@ -57,12 +57,60 @@ export const EXPERIENCE_LEVELS: ExperienceLevel[] = [
   'More than five years'
 ];
 
+export interface CertificateAttachment {
+  name: string;
+  url: string;
+  issuer?: string;
+  uploadedAt: string;
+}
+
+export type SearchRadiusKm = 5 | 10 | 25 | 50 | 100;
+
 export interface JobPreferences {
   jobTypes: string[];
   expectedSalary: string;
+  expectedDailyWage?: string;
+  preferredWorkingHours?: string;
+  preferredSearchRadiusKm?: SearchRadiusKm;
   availability: 'Immediate' | 'Within 15 days' | 'Within 1 month' | 'Flexible';
   preferredLocations: string[];
+  willingToRelocate?: boolean;
+  accommodationRequired?: boolean;
 }
+
+export const JOB_SEEKER_PROFESSIONS = [
+  'Construction Worker',
+  'Electrician',
+  'Plumber',
+  'Carpenter',
+  'Painter',
+  'Welder',
+  'Driver',
+  'Security Guard',
+  'Factory Worker',
+  'Agricultural Worker',
+  'Software Developer',
+  'Designer',
+  'Office Assistant',
+  'Delivery Worker',
+  'Other'
+] as const;
+
+export const INDIAN_LANGUAGES = [
+  'Hindi (हिन्दी)',
+  'English',
+  'Marathi (मराठी)',
+  'Tamil (தமிழ்)',
+  'Telugu (తెలుగు)',
+  'Bengali (বাংলা)',
+  'Gujarati (ગુજરાતી)',
+  'Kannada (ಕನ್ನಡ)',
+  'Malayalam (മലയാളം)',
+  'Punjabi (ਪੰਜਾਬੀ)',
+  'Odia (ଓଡ଼ିଆ)',
+  'Assamese (অসমীয়া)',
+  'Urdu (اردو)'
+] as const;
 
 export interface WorkerProfile {
   uid: string;
@@ -71,9 +119,10 @@ export interface WorkerProfile {
   email?: string;
   dateOfBirth?: string;
   ageEligibilityConfirmed: boolean;
-  gender: Gender;
+  gender?: Gender;
   profilePhoto?: string;
   isPhotoVerifiedReal?: boolean;
+  currentAddress?: string;
   country: string;
   state: string;
   district?: string;
@@ -82,14 +131,42 @@ export interface WorkerProfile {
   pincode: string;
   lat?: number;
   lng?: number;
+  preferredLanguage?: string;
+  emergencyContactName?: string;
+  emergencyContactPhone?: string;
+  emergencyContactRelation?: string;
   preferredLocations: string[];
+  // Education Details
   education: EducationLevel;
+  schoolOrCollegeName?: string;
+  passingYear?: string;
+  additionalQualifications?: string;
+  educationCertificates?: CertificateAttachment[];
+  // Professional Details
+  selectedProfessions?: string[];
+  customProfession?: string;
   skills: string[];
   customSkills: string[];
   experience: ExperienceLevel;
+  previousCompanyName?: string;
+  previousJobRole?: string;
+  workPortfolioUrl?: string;
+  workPortfolioDescription?: string;
+  workPortfolioImages?: string[];
+  skillCertificates?: CertificateAttachment[];
+  // Job Preferences
   jobPreferences: JobPreferences;
+  // Documents & Verification (Never stores raw sensitive ID numbers)
   resumeUrl?: string;
   resumeName?: string;
+  identityVerificationProvider?: string;
+  identityVerifiedMask?: string;
+  identityVerificationStatus?: 'Verified' | 'Pending' | 'Not Started';
+  digilockerLinked?: boolean;
+  digilockerSharedDocs?: string[];
+  mobileOtpVerified?: boolean;
+  emailVerified?: boolean;
+  profileCompletionPercentage?: number;
   privacySettings?: {
     allowDirectContact: boolean;
     showLocationInNearby: boolean;
@@ -100,36 +177,166 @@ export interface WorkerProfile {
 
 export type VerificationStatus =
   | 'Pending'
+  | 'Pending Verification'
+  | 'Verification Required'
   | 'Verified'
   | 'Rejected'
   | 'Requires additional information';
 
+export interface WorksiteBranch {
+  id: string;
+  name: string;
+  city: string;
+  state: string;
+  pincode: string;
+  address: string;
+}
+
+export interface EmployerLabourRequirement {
+  jobTitle: string;
+  workerCategory: string;
+  workersRequiredCount: number;
+  requiredSkills: string[];
+  minimumExperience: ExperienceLevel;
+  educationQualification: EducationLevel;
+  jobDescription: string;
+  workResponsibilities: string;
+  preferredJoiningDate: string;
+  jobDuration: string;
+  workLocation: string;
+}
+
+export interface EmployerSalaryAndBenefits {
+  paymentMode: 'Daily Wage' | 'Monthly Salary' | 'Hourly Payment';
+  minSalary: number;
+  maxSalary: number;
+  paymentFrequency: PaymentFrequency;
+  overtimeAvailable: boolean;
+  overtimeRateNote?: string;
+  foodFacility: 'Provided Free' | 'Subsidized' | 'Not Provided';
+  accommodationFacility: 'Provided on Site' | 'Allowance Provided' | 'Not Provided';
+  transportationFacility: 'Company Pickup/Drop' | 'Travel Allowance' | 'Not Provided';
+  insuranceAndBenefits: string[];
+}
+
+export interface EmployerWorkingConditions {
+  dailyWorkingHours: string;
+  shiftTimings: string;
+  weeklyHolidays: string;
+  workEnvironment: string;
+  safetyEquipmentProvided: string[];
+  workplaceFacilities: string[];
+  jobStartDate: string;
+  expectedCompletionDate?: string;
+}
+
+export interface EmployerHiringPreferences {
+  hiringScale: 'Individual Hiring' | 'Bulk Hiring' | 'Both Individual & Bulk';
+  hiringUrgency: 'Immediate Hiring' | 'Future Hiring';
+  employmentNature: 'Permanent' | 'Temporary' | 'Contract';
+  interviewRequired: boolean;
+  interviewMode?: string;
+  maxSearchRadiusKm: SearchRadiusKm;
+  workerAvailabilityRequirements: string;
+  additionalHiringInstructions?: string;
+}
+
+export const WORKFORCE_TYPES_OPTIONS = [
+  'Skilled Labour',
+  'Semi-Skilled Labour',
+  'Unskilled Labour',
+  'Technical Employees',
+  'Office Employees',
+  'Professional Employees',
+  'Temporary Workers',
+  'Contract Workers'
+] as const;
+
+export const EMPLOYER_DESIGNATIONS = [
+  'Owner',
+  'Director',
+  'Manager',
+  'Contractor',
+  'HR Manager',
+  'Proprietor / Business Owner'
+] as const;
+
+export const COMPANY_SIZES = [
+  '1–10 Employees',
+  '11–50 Employees',
+  '51–200 Employees',
+  '201–500 Employees',
+  '500+ Employees'
+] as const;
+
+export const COMPANY_REGISTRATION_TYPES = [
+  'Sole Proprietorship',
+  'Partnership Firm',
+  'Private Limited (Pvt Ltd)',
+  'Limited Liability Partnership (LLP)',
+  'MSME / Udyam Registered',
+  'Licensed Contractor',
+  'Public Limited Company',
+  'Individual / Local Business'
+] as const;
+
 export interface EmployerProfile {
   uid: string;
+  // Step 2: Owner Information
   ownerName: string;
+  ownerProfilePhoto?: string;
   ownerEmail: string;
   ownerPhone?: string;
   designation: string;
+  preferredLanguage?: string;
+  ownerContactAddress?: string;
+  // Step 3: Company Information
   businessName: string;
+  businessLogo?: string;
   businessCategory: string;
   businessDescription?: string;
-  businessLogo?: string;
+  yearOfEstablishment?: string;
+  companySize?: string;
+  companyRegistrationType?: string;
+  documentNumber?: string; // GSTIN if applicable
+  website?: string;
+  companyRegistrationDocuments?: CertificateAttachment[];
   businessImages?: string[];
   boardGstinVerifiedByAI?: boolean;
   aiBoardVerificationSummary?: string;
-  website?: string;
+  // Step 4: Company Location
+  country?: string;
   state: string;
   district?: string;
   city?: string;
   area?: string;
+  businessAddress?: string;
   pincode: string;
+  worksiteLocation?: string;
   lat?: number;
   lng?: number;
-  businessAddress?: string;
+  multipleWorkLocations?: WorksiteBranch[];
+  discoveryRadiusKm?: SearchRadiusKm;
+  // Step 5: Hiring Requirements
+  workforceTypesNeeded?: string[];
+  // Step 6: Labour Details
+  labourRequirementDetails?: EmployerLabourRequirement;
+  // Step 7: Salary & Benefits
+  salaryAndBenefits?: EmployerSalaryAndBenefits;
+  // Step 8: Working Conditions
+  workingConditions?: EmployerWorkingConditions;
+  // Step 9: Hiring Preferences
+  hiringPreferences?: EmployerHiringPreferences;
+  // Step 10: Employer Verification
   verificationStatus: VerificationStatus;
   emailVerified: boolean;
   phoneVerified: boolean;
-  documentNumber?: string;
+  mobileOtpVerified?: boolean;
+  companyDocumentVerified?: boolean;
+  gstinVerified?: boolean;
+  authorizedVerificationProvider?: string;
+  authorizedVerificationRef?: string;
+  profileCompletionPercentage?: number;
   submittedAt?: any;
   updatedAt?: any;
 }
@@ -378,18 +585,18 @@ export const SKILL_CATEGORIES_DATA: Record<string, string[]> = {
 };
 
 export const BUSINESS_CATEGORIES = [
-  'Coaching Classes / Education Institute',
-  'Retail',
-  'Restaurant',
-  'Hotel',
-  'Manufacturing',
   'Construction',
-  'IT',
-  'Education',
-  'Healthcare',
-  'Transport',
+  'Manufacturing',
   'Agriculture',
-  'Service provider',
+  'Transportation',
+  'IT & Software',
+  'Retail',
+  'Hospitality',
+  'Healthcare',
+  'Education',
+  'Security Services',
+  'Cleaning Services',
+  'Coaching Classes / Education Institute',
   'Other'
 ];
 

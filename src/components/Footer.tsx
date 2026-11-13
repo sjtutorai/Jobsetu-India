@@ -1,5 +1,12 @@
 import React from 'react';
 import { Briefcase, MapPin, Mail, Phone, Heart, ShieldCheck } from 'lucide-react';
+import {
+  ParticleBackground,
+  AnimatedSVGDrawLine,
+  StaggeredCardContainer,
+  StaggeredCardItem,
+  ScrollDrivenRotation
+} from './animations';
 
 interface FooterProps {
   onOpenModal: (type: 'about' | 'contact' | 'privacy' | 'terms' | 'help') => void;
@@ -7,15 +14,22 @@ interface FooterProps {
 
 export const Footer: React.FC<FooterProps> = ({ onOpenModal }) => {
   return (
-    <footer className="bg-[#111827] text-white pt-16 pb-12 border-t border-gray-800">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-10 pb-12 border-b border-gray-800">
+    <footer className="relative overflow-hidden bg-[#111827] text-white pt-16 pb-12 border-t border-gray-800">
+      <ParticleBackground count={10} dotColor="bg-blue-400/20" />
+      <div className="absolute top-0 left-0 right-0 pointer-events-none">
+        <AnimatedSVGDrawLine strokeColor="#F59E0B" className="w-full h-3" />
+      </div>
+
+      <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <StaggeredCardContainer className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-10 pb-12 border-b border-gray-800">
           {/* Brand Info */}
-          <div className="lg:col-span-2 space-y-4">
+          <StaggeredCardItem className="lg:col-span-2 space-y-4">
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-[#2563EB] to-blue-600 flex items-center justify-center text-white shadow-lg shadow-blue-500/20">
-                <Briefcase className="w-5 h-5" />
-              </div>
+              <ScrollDrivenRotation degrees={90}>
+                <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-[#2563EB] to-blue-600 flex items-center justify-center text-white shadow-lg shadow-blue-500/20 jobsetu-float-3d">
+                  <Briefcase className="w-5 h-5" />
+                </div>
+              </ScrollDrivenRotation>
               <span className="text-2xl font-black tracking-tight text-white">
                 JOB<span className="text-[#2563EB]">SETU</span>
               </span>
@@ -30,10 +44,10 @@ export const Footer: React.FC<FooterProps> = ({ onOpenModal }) => {
               <ShieldCheck className="w-4 h-4 text-emerald-400" />
               <span>Verified Employers & Zero Middlemen Commission</span>
             </div>
-          </div>
+          </StaggeredCardItem>
 
           {/* Quick Links */}
-          <div>
+          <StaggeredCardItem>
             <h4 className="text-sm font-bold uppercase tracking-wider text-gray-200 mb-4">
               Platform
             </h4>
@@ -41,7 +55,7 @@ export const Footer: React.FC<FooterProps> = ({ onOpenModal }) => {
               <li>
                 <button
                   onClick={() => onOpenModal('about')}
-                  className="hover:text-white transition-colors"
+                  className="hover:text-white transition-colors jobsetu-nav-underline cursor-pointer"
                 >
                   About Us
                 </button>
@@ -49,7 +63,7 @@ export const Footer: React.FC<FooterProps> = ({ onOpenModal }) => {
               <li>
                 <button
                   onClick={() => onOpenModal('help')}
-                  className="hover:text-white transition-colors"
+                  className="hover:text-white transition-colors jobsetu-nav-underline cursor-pointer"
                 >
                   Help Centre
                 </button>
@@ -57,7 +71,7 @@ export const Footer: React.FC<FooterProps> = ({ onOpenModal }) => {
               <li>
                 <button
                   onClick={() => onOpenModal('contact')}
-                  className="hover:text-white transition-colors"
+                  className="hover:text-white transition-colors jobsetu-nav-underline cursor-pointer"
                 >
                   Contact Support
                 </button>
@@ -66,10 +80,10 @@ export const Footer: React.FC<FooterProps> = ({ onOpenModal }) => {
                 <span className="text-gray-500 text-xs">Coverage: 28 States & 8 UTs</span>
               </li>
             </ul>
-          </div>
+          </StaggeredCardItem>
 
           {/* Legal */}
-          <div>
+          <StaggeredCardItem>
             <h4 className="text-sm font-bold uppercase tracking-wider text-gray-200 mb-4">
               Legal & Safety
             </h4>
@@ -77,7 +91,7 @@ export const Footer: React.FC<FooterProps> = ({ onOpenModal }) => {
               <li>
                 <button
                   onClick={() => onOpenModal('privacy')}
-                  className="hover:text-white transition-colors"
+                  className="hover:text-white transition-colors jobsetu-nav-underline cursor-pointer"
                 >
                   Privacy Policy
                 </button>
@@ -85,7 +99,7 @@ export const Footer: React.FC<FooterProps> = ({ onOpenModal }) => {
               <li>
                 <button
                   onClick={() => onOpenModal('terms')}
-                  className="hover:text-white transition-colors"
+                  className="hover:text-white transition-colors jobsetu-nav-underline cursor-pointer"
                 >
                   Terms and Conditions
                 </button>
@@ -93,7 +107,7 @@ export const Footer: React.FC<FooterProps> = ({ onOpenModal }) => {
               <li>
                 <button
                   onClick={() => onOpenModal('help')}
-                  className="hover:text-white transition-colors"
+                  className="hover:text-white transition-colors jobsetu-nav-underline cursor-pointer"
                 >
                   Worker Protection Guidelines
                 </button>
@@ -101,16 +115,16 @@ export const Footer: React.FC<FooterProps> = ({ onOpenModal }) => {
               <li>
                 <button
                   onClick={() => onOpenModal('help')}
-                  className="hover:text-white transition-colors"
+                  className="hover:text-white transition-colors jobsetu-nav-underline cursor-pointer"
                 >
                   Employer Verification Norms
                 </button>
               </li>
             </ul>
-          </div>
+          </StaggeredCardItem>
 
           {/* India Helpline */}
-          <div>
+          <StaggeredCardItem>
             <h4 className="text-sm font-bold uppercase tracking-wider text-gray-200 mb-4">
               Pan-India Support
             </h4>
@@ -130,15 +144,15 @@ export const Footer: React.FC<FooterProps> = ({ onOpenModal }) => {
                 <span className="text-xs">+91 (1800) 572-SETU</span>
               </div>
             </div>
-          </div>
-        </div>
+          </StaggeredCardItem>
+        </StaggeredCardContainer>
 
         {/* Bottom Bar */}
         <div className="pt-8 flex flex-col sm:flex-row items-center justify-between text-xs text-gray-500 gap-4">
           <p>© {new Date().getFullYear()} JOBSETU Technologies India. All rights reserved.</p>
           <div className="flex items-center gap-2 text-gray-400">
             <span>Built with</span>
-            <Heart className="w-3.5 h-3.5 text-red-500 fill-current" />
+            <Heart className="w-3.5 h-3.5 text-red-500 fill-current animate-pulse" />
             <span>for Bharat's aspiring job seekers and businesses</span>
           </div>
         </div>

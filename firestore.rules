@@ -68,8 +68,26 @@ service cloud.firestore {
       allow delete: if isValidId(uid) && (isOwner(uid) || isAdmin());
     }
 
+    // Structured Job Seeker profiles collection linked to authenticated user's UID
+    match /jobSeekers/{uid} {
+      allow get: if isValidId(uid);
+      allow list: if true;
+      allow create: if isValidId(uid) && isOwner(uid);
+      allow update: if isValidId(uid) && (isOwner(uid) || isAdmin());
+      allow delete: if isValidId(uid) && (isOwner(uid) || isAdmin());
+    }
+
     // Employer profiles
     match /employerProfiles/{uid} {
+      allow get: if isValidId(uid);
+      allow list: if true;
+      allow create: if isValidId(uid) && isOwner(uid);
+      allow update: if isValidId(uid) && (isOwner(uid) || isAdmin());
+      allow delete: if isValidId(uid) && (isOwner(uid) || isAdmin());
+    }
+
+    // Separate structured Employer profiles collection linked to authenticated user's UID
+    match /employers/{uid} {
       allow get: if isValidId(uid);
       allow list: if true;
       allow create: if isValidId(uid) && isOwner(uid);

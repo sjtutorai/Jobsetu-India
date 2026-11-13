@@ -22,6 +22,8 @@ import {
 import { UserRole } from '../../types';
 import { executeRecaptchaEnterprise } from '../../lib/recaptcha';
 import welcomeBanner from '../../assets/images/jobsetu_welcome_banner_1793980683855.jpg';
+import { motion, AnimatePresence } from 'motion/react';
+import { AnimatedImage, WordStagger, ParticleBackground } from '../animations';
 
 interface AuthModalProps {
   isOpen: boolean;
@@ -89,8 +91,6 @@ export const AuthModal: React.FC<AuthModalProps> = ({
       setConfirmPassword('');
     }
   }, [isOpen, initialMode, initialRole]);
-
-  if (!isOpen) return null;
 
   const switchAuthMode = (targetMode: AuthMode) => {
     setMode(targetMode);
@@ -242,28 +242,45 @@ export const AuthModal: React.FC<AuthModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-6 bg-black/65 backdrop-blur-md overflow-y-auto">
-      <div className="relative w-full max-w-4xl lg:max-w-5xl bg-white rounded-3xl shadow-2xl border border-gray-100 overflow-hidden my-auto grid grid-cols-1 md:grid-cols-12 min-h-[580px] animate-in fade-in zoom-in-95 duration-200">
-        {/* ================= LEFT SIDE: IMAGE & BRANDING ================= */}
-        <div className="relative hidden md:flex md:col-span-5 flex-col justify-between p-8 text-white overflow-hidden bg-blue-950">
-          {/* Background Image (50% Transparency) */}
-          <img
-            src={welcomeBanner}
-            alt="JOBSETU India Workforce"
-            className="absolute inset-0 w-full h-full object-cover object-center opacity-50"
-          />
-
-          {/* Deep Royal Gradient Overlay */}
-          <div className="absolute inset-0 bg-gradient-to-t from-blue-950/80 via-blue-950/50 to-blue-900/30" />
-
-          {/* Top Logo & Tagline */}
-          <div className="relative z-10">
-            <div className="flex items-center gap-2.5">
-              <img
-                src="https://i.ibb.co/jv67DNGx/Jobsetulogo.png"
-                alt="JOBSETU Logo"
-                className="w-10 h-10 rounded-xl bg-white object-contain p-1 shadow-lg shrink-0"
+    <AnimatePresence>
+      {isOpen && (
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-6 bg-black/65 backdrop-blur-md overflow-y-auto"
+        >
+          <motion.div
+            initial={{ opacity: 0, scale: 0.93, y: 20 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            exit={{ opacity: 0, scale: 0.94, y: 14 }}
+            transition={{ type: 'spring', stiffness: 280, damping: 24 }}
+            className="relative w-full max-w-4xl lg:max-w-5xl bg-white rounded-3xl shadow-2xl border border-gray-100 overflow-hidden my-auto grid grid-cols-1 md:grid-cols-12 min-h-[580px]"
+          >
+            {/* ================= LEFT SIDE: IMAGE & BRANDING ================= */}
+            <div className="relative hidden md:flex md:col-span-5 flex-col justify-between p-8 text-white overflow-hidden bg-blue-950">
+              {/* Background Image (50% Transparency) */}
+              <AnimatedImage
+                variant="blurToSharp"
+                src={welcomeBanner}
+                alt="JOBSETU India Workforce"
+                wrapperClassName="absolute inset-0 w-full h-full"
+                className="w-full h-full object-cover object-center opacity-50"
               />
+              <ParticleBackground count={8} dotColor="bg-amber-300/20" />
+
+              {/* Deep Royal Gradient Overlay */}
+              <div className="absolute inset-0 bg-gradient-to-t from-blue-950/80 via-blue-950/50 to-blue-900/30" />
+
+              {/* Top Logo & Tagline */}
+              <div className="relative z-10">
+                <div className="flex items-center gap-2.5">
+                  <AnimatedImage
+                    variant="floating"
+                    src="https://i.ibb.co/jv67DNGx/Jobsetulogo.png"
+                    alt="JOBSETU Logo"
+                    className="w-10 h-10 rounded-xl bg-white object-contain p-1 shadow-lg shrink-0"
+                  />
               <div>
                 <span className="text-2xl font-black tracking-tight text-white">
                   JOB<span className="text-[#F59E0B]">SETU</span>
@@ -286,7 +303,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
             </div>
 
             <h3 className="text-xl lg:text-2xl font-black text-white leading-snug">
-              Empowering Bharat’s Seekers & Enterprises
+              <WordStagger text="Empowering Bharat’s Seekers & Enterprises" />
             </h3>
 
             <div className="space-y-2.5 text-xs text-blue-100">
@@ -344,29 +361,43 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                 </p>
               </div>
 
-              {/* Mode Switch Tabs */}
-              <div className="flex p-1 rounded-xl bg-gray-100 mb-5">
+              {/* Mode Switch Tabs with Shared Element Indicator */}
+              <div className="flex p-1 rounded-xl bg-gray-100 mb-5 relative">
                 <button
                   type="button"
                   onClick={() => switchAuthMode('signin')}
-                  className={`flex-1 py-2 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                  className={`relative flex-1 py-2 rounded-lg text-xs font-bold transition-colors cursor-pointer ${
                     mode === 'signin'
-                      ? 'bg-white text-gray-900 shadow-xs'
+                      ? 'text-gray-900'
                       : 'text-gray-500 hover:text-gray-800'
                   }`}
                 >
-                  Sign In (/signin)
+                  {mode === 'signin' && (
+                    <motion.span
+                      layoutId="auth-mode-tab"
+                      transition={{ type: 'spring', stiffness: 360, damping: 28 }}
+                      className="absolute inset-0 bg-white rounded-lg shadow-xs"
+                    />
+                  )}
+                  <span className="relative z-10">Sign In (/signin)</span>
                 </button>
                 <button
                   type="button"
                   onClick={() => switchAuthMode('signup')}
-                  className={`flex-1 py-2 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                  className={`relative flex-1 py-2 rounded-lg text-xs font-bold transition-colors cursor-pointer ${
                     mode === 'signup'
-                      ? 'bg-white text-gray-900 shadow-xs'
+                      ? 'text-gray-900'
                       : 'text-gray-500 hover:text-gray-800'
                   }`}
                 >
-                  Create Account (/signup)
+                  {mode === 'signup' && (
+                    <motion.span
+                      layoutId="auth-mode-tab"
+                      transition={{ type: 'spring', stiffness: 360, damping: 28 }}
+                      className="absolute inset-0 bg-white rounded-lg shadow-xs"
+                    />
+                  )}
+                  <span className="relative z-10">Create Account (/signup)</span>
                 </button>
               </div>
 
@@ -784,7 +815,9 @@ export const AuthModal: React.FC<AuthModalProps> = ({
             <span>Protected by Google reCAPTCHA Enterprise & Firebase Cloud</span>
           </div>
         </div>
-      </div>
-    </div>
+          </motion.div>
+        </motion.div>
+      )}
+    </AnimatePresence>
   );
 };

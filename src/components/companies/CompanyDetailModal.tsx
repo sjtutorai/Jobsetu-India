@@ -15,6 +15,8 @@ import {
   Layers,
   Globe
 } from 'lucide-react';
+import { motion, AnimatePresence } from 'motion/react';
+import { AnimatedImage } from '../animations';
 
 interface CompanyDetailModalProps {
   company: CompanyProfile | null;
@@ -33,27 +35,39 @@ export const CompanyDetailModal: React.FC<CompanyDetailModalProps> = ({
   onToggleSave,
   onAskAI
 }) => {
-  if (!isOpen || !company) return null;
-
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in">
-      <div className="bg-white rounded-3xl max-w-2xl w-full max-h-[92vh] overflow-y-auto shadow-2xl border border-gray-100 flex flex-col">
-        {/* Header Banner */}
-        <div className="relative p-6 sm:p-8 bg-gradient-to-r from-slate-900 via-indigo-950 to-blue-950 text-white rounded-t-3xl overflow-hidden">
-          <button
-            type="button"
-            onClick={onClose}
-            className="absolute top-5 right-5 p-2 rounded-xl bg-white/10 hover:bg-white/20 text-white transition-colors cursor-pointer"
+    <AnimatePresence>
+      {isOpen && company && (
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm"
+        >
+          <motion.div
+            initial={{ opacity: 0, scale: 0.92, y: 18 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            exit={{ opacity: 0, scale: 0.94, y: 12 }}
+            transition={{ type: 'spring', stiffness: 280, damping: 24 }}
+            className="bg-white rounded-3xl max-w-2xl w-full max-h-[92vh] overflow-y-auto shadow-2xl border border-gray-100 flex flex-col"
           >
-            <X className="w-5 h-5" />
-          </button>
+            {/* Header Banner */}
+            <div className="relative p-6 sm:p-8 bg-gradient-to-r from-slate-900 via-indigo-950 to-blue-950 text-white rounded-t-3xl overflow-hidden">
+              <button
+                type="button"
+                onClick={onClose}
+                className="absolute top-5 right-5 p-2 rounded-xl bg-white/10 hover:bg-white/20 text-white transition-colors cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
 
-          <div className="flex flex-col sm:flex-row sm:items-center gap-5">
-            <img
-              src={company.logo}
-              alt={company.name}
-              className="w-20 h-20 rounded-2xl object-cover bg-white p-1 border-2 border-white/20 shadow-lg shrink-0"
-            />
+              <div className="flex flex-col sm:flex-row sm:items-center gap-5">
+                <AnimatedImage
+                  variant="rotationEntrance"
+                  src={company.logo}
+                  alt={company.name}
+                  className="w-20 h-20 rounded-2xl object-cover bg-white p-1 border-2 border-white/20 shadow-lg shrink-0"
+                />
             <div className="space-y-1">
               <div className="flex items-center gap-2">
                 <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-blue-500/30 text-blue-200 border border-blue-400/30">
@@ -241,7 +255,9 @@ export const CompanyDetailModal: React.FC<CompanyDetailModalProps> = ({
             Close
           </button>
         </div>
-      </div>
-    </div>
+          </motion.div>
+        </motion.div>
+      )}
+    </AnimatePresence>
   );
 };

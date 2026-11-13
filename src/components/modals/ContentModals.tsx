@@ -12,6 +12,8 @@ import {
   CheckCircle2,
   Send
 } from 'lucide-react';
+import { motion, AnimatePresence } from 'motion/react';
+import { SmokeReveal } from '../animations';
 
 export type ModalType = 'about' | 'how-it-works' | 'contact' | 'privacy' | 'terms' | 'help';
 
@@ -31,8 +33,6 @@ export const ContentModals: React.FC<ContentModalsProps> = ({
   const [contactEmail, setContactEmail] = useState('');
   const [contactMessage, setContactMessage] = useState('');
 
-  if (!activeModal) return null;
-
   const handleContactSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     setContactSubmitted(true);
@@ -43,8 +43,21 @@ export const ContentModals: React.FC<ContentModalsProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs overflow-y-auto">
-      <div className="relative w-full max-w-2xl bg-white rounded-3xl shadow-2xl border border-gray-100 overflow-hidden my-8 animate-in fade-in zoom-in-95 duration-200 max-h-[85vh] flex flex-col">
+    <AnimatePresence>
+      {activeModal && (
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs overflow-y-auto"
+        >
+          <motion.div
+            initial={{ opacity: 0, scale: 0.94, y: 16 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            exit={{ opacity: 0, scale: 0.95, y: 12 }}
+            transition={{ type: 'spring', stiffness: 280, damping: 24 }}
+            className="relative w-full max-w-2xl bg-white rounded-3xl shadow-2xl border border-gray-100 overflow-hidden my-8 max-h-[85vh] flex flex-col"
+          >
         {/* Header */}
         <div className="px-6 py-5 bg-gradient-to-r from-blue-50 to-amber-50/50 border-b border-gray-100 flex items-center justify-between shrink-0">
           <div className="flex items-center gap-2">
@@ -65,6 +78,7 @@ export const ContentModals: React.FC<ContentModalsProps> = ({
 
         {/* Modal Scrollable Body */}
         <div className="p-6 sm:p-8 overflow-y-auto text-sm text-gray-700 space-y-5">
+          <SmokeReveal>
           {/* ABOUT US */}
           {activeModal === 'about' && (
             <div className="space-y-4">
@@ -239,8 +253,11 @@ export const ContentModals: React.FC<ContentModalsProps> = ({
               </div>
             </div>
           )}
+          </SmokeReveal>
         </div>
-      </div>
-    </div>
+          </motion.div>
+        </motion.div>
+      )}
+    </AnimatePresence>
   );
 };

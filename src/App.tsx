@@ -23,8 +23,29 @@ import { AdminDashboard } from './components/admin/AdminDashboard';
 import { AIAssistantModal } from './components/common/AIAssistantModal';
 import { Shield, MapPin, Navigation, X, ArrowLeft } from 'lucide-react';
 import { executeRecaptchaEnterprise } from './lib/recaptcha';
+import { MotionConfig, AnimatePresence, motion } from 'motion/react';
+import {
+  GlobalCursorEffects,
+  PageTransitionWrapper,
+  PageTransitionKind,
+  AnimatedImage,
+  ScrambleText,
+  TypewriterText,
+  AnimatedSVGDrawLine,
+  MagneticButton,
+  RippleContainer
+} from './components/animations';
 
 type AppView = 'home' | '50km-radius' | 'worker-onboarding' | 'employer-onboarding' | 'dashboard' | 'admin';
+
+const VIEW_TRANSITION_KIND: Record<AppView, PageTransitionKind> = {
+  home: 'fade',
+  '50km-radius': 'zoomThrough',
+  'worker-onboarding': 'circularReveal',
+  'employer-onboarding': 'verticalCurtain',
+  dashboard: 'horizontalSlide',
+  admin: 'blur'
+};
 
 const MODAL_PATHS: Record<ModalType, string> = {
   about: '/about',
@@ -454,15 +475,22 @@ function MainApp() {
   if (loading) {
     return (
       <div className="min-h-screen bg-slate-50 flex flex-col items-center justify-center p-4">
-        <img
+        <AnimatedImage
+          variant="morphTransition"
           src="https://i.ibb.co/jv67DNGx/Jobsetulogo.png"
           alt="JOBSETU Logo"
-          className="w-20 h-20 rounded-2xl object-contain bg-white border border-gray-100 shadow-xl shadow-blue-500/15 p-2 mb-4 animate-pulse"
+          className="w-20 h-20 rounded-2xl object-contain bg-white border border-gray-100 shadow-xl shadow-blue-500/15 p-2 mb-4 jobsetu-float-3d"
         />
         <p className="text-sm font-extrabold text-gray-800 tracking-tight">
-          JOB<span className="text-[#2563EB]">SETU</span>
+          <ScrambleText text="JOB" />
+          <span className="text-[#2563EB]">
+            <ScrambleText text="SETU" delay={0.15} />
+          </span>
         </p>
-        <p className="text-xs text-gray-500 mt-1">Connecting People. Creating Opportunities.</p>
+        <p className="text-xs text-gray-500 mt-1">
+          <TypewriterText text="Connecting People. Creating Opportunities." speedMs={22} />
+        </p>
+        <AnimatedSVGDrawLine className="w-40 h-4 mt-2" />
       </div>
     );
   }
@@ -470,7 +498,10 @@ function MainApp() {
   const activeRole = userProfile?.activeRole || intendedRole || 'worker';
 
   return (
-    <div className="min-h-screen flex flex-col bg-[#F9FAFB] text-[#111827]">
+    <div className="min-h-screen flex flex-col bg-[#F9FAFB] text-[#111827] relative">
+      {/* Desktop Cursor Spotlight & Custom Animated Cursor */}
+      <GlobalCursorEffects />
+
       {/* Toast Notifications */}
       <ToastContainer toasts={toasts} onDismiss={removeToast} />
 
@@ -528,20 +559,26 @@ function MainApp() {
         />
       )}
 
-      {/* Main Content Area */}
+      {/* Main Content Area with View Page Transitions */}
       <main className="flex-1">
-        {view === 'home' && (
-          <>
-            <Hero
-              onSelectRole={handleSelectRoleFromHome}
-              onOpen50KmRadius={handleOpen50KmRadius}
-            />
-            <StatsSection />
-            <TopCompaniesSection onOpenAIAssistant={handleOpenAIAssistant} />
-            <HowItWorksSection onSelectRole={handleSelectRoleFromHome} />
-            <SkillCategoriesShowcase />
-          </>
-        )}
+        <AnimatePresence mode="wait">
+          <PageTransitionWrapper
+            key={view}
+            routeKey={view}
+            kind={VIEW_TRANSITION_KIND[view]}
+          >
+            {view === 'home' && (
+              <>
+                <Hero
+                  onSelectRole={handleSelectRoleFromHome}
+                  onOpen50KmRadius={handleOpen50KmRadius}
+                />
+                <StatsSection />
+                <TopCompaniesSection onOpenAIAssistant={handleOpenAIAssistant} />
+                <HowItWorksSection onSelectRole={handleSelectRoleFromHome} />
+                <SkillCategoriesShowcase />
+              </>
+            )}
 
         {view === '50km-radius' && (
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
@@ -626,6 +663,11 @@ function MainApp() {
         {view === 'employer-onboarding' && (
           <EmployerOnboarding
             onComplete={handleEmployerOnboardingComplete}
+            onExploreNearbyWorkers={() => {
+              fireCelebrationConfetti();
+              addToast('success', 'Employer profile saved! Exploring nearby verified workers.', 'Profile Ready');
+              navigateTo('/findemployee/50km-radius', 'dashboard', 'employer');
+            }}
             onCancel={() =>
               navigateTo(currentUser ? '/findemployee' : '/', currentUser ? 'dashboard' : 'home')
             }
@@ -663,20 +705,31 @@ function MainApp() {
             }
           />
         )}
+          </PageTransitionWrapper>
+        </AnimatePresence>
       </main>
 
       {/* Admin Console Shortcut (Only for Admin; AI Assistant is kept exclusively in the Slide Navigation Bar after login) */}
       {currentUser?.email === 'sjtutorai@gmail.com' && view !== 'admin' && (
-        <div className="fixed bottom-6 right-6 z-40 flex items-center gap-2">
-          <button
-            onClick={() => navigateTo('/admin', 'admin')}
-            className="px-3.5 py-2.5 rounded-full bg-slate-900 hover:bg-slate-800 text-amber-400 text-xs font-bold shadow-lg border border-slate-700 flex items-center gap-1.5 cursor-pointer transition-transform hover:scale-105"
-            title="Open Admin Console"
-          >
-            <Shield className="w-4 h-4" />
-            <span>Admin</span>
-          </button>
-        </div>
+        <motion.div
+          initial={{ opacity: 0, scale: 0.85, y: 16 }}
+          animate={{ opacity: 1, scale: 1, y: 0 }}
+          transition={{ type: 'spring', stiffness: 260, damping: 18 }}
+          className="fixed bottom-6 right-6 z-40 flex items-center gap-2"
+        >
+          <MagneticButton>
+            <RippleContainer className="rounded-full">
+              <button
+                onClick={() => navigateTo('/admin', 'admin')}
+                className="px-3.5 py-2.5 rounded-full bg-slate-900 hover:bg-slate-800 text-amber-400 text-xs font-bold shadow-lg border border-slate-700 flex items-center gap-1.5 cursor-pointer transition-transform hover:scale-105 jobsetu-liquid-btn"
+                title="Open Admin Console"
+              >
+                <Shield className="w-4 h-4" />
+                <span>Admin</span>
+              </button>
+            </RippleContainer>
+          </MagneticButton>
+        </motion.div>
       )}
 
       {/* Global Footer (Shown on public landing or 50km-radius view when not logged in) */}
@@ -719,12 +772,14 @@ function MainApp() {
 
 export default function App() {
   return (
-    <AuthProvider>
-      <JobProvider>
-        <AttendanceProvider>
-          <MainApp />
-        </AttendanceProvider>
-      </JobProvider>
-    </AuthProvider>
+    <MotionConfig reducedMotion="user">
+      <AuthProvider>
+        <JobProvider>
+          <AttendanceProvider>
+            <MainApp />
+          </AttendanceProvider>
+        </JobProvider>
+      </AuthProvider>
+    </MotionConfig>
   );
 }

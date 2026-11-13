@@ -25,6 +25,8 @@ import {
   Send
 } from 'lucide-react';
 import { UserRole } from '../../types';
+import { motion, AnimatePresence } from 'motion/react';
+import { AnimatedImage, AnimatedProgressBar } from '../animations';
 
 export interface SidebarItem {
   id: string;
@@ -204,8 +206,8 @@ export const SlideSidebar: React.FC<SlideSidebarProps> = ({
     },
     {
       id: 'workers_near_me',
-      label: '50 KM Radius (Workers)',
-      subtext: '5 KM - 50 KM Radar & Map',
+      label: 'Find Nearby Workers',
+      subtext: '5 KM - 100 KM Radar & Map',
       icon: Users,
       badge: '50 KM',
       badgeColor: 'bg-amber-500 text-slate-950'
@@ -219,28 +221,6 @@ export const SlideSidebar: React.FC<SlideSidebarProps> = ({
       badgeColor: 'bg-emerald-100 text-emerald-800'
     },
     {
-      id: 'trust_centre',
-      label: 'Trust & Verification',
-      subtext: 'Aadhaar, DigiLocker & Ratings',
-      icon: ShieldCheck,
-      badge: 'e-KYC',
-      badgeColor: 'bg-emerald-100 text-emerald-800'
-    },
-    {
-      id: 'attendance',
-      label: 'Attendance & Staff',
-      subtext: 'Geofence, QR, Shifts',
-      icon: Clock,
-      badge: 'Operations',
-      badgeColor: 'bg-blue-100 text-blue-800'
-    },
-    {
-      id: 'hiring_requests',
-      label: 'Sent Hiring Offers',
-      subtext: 'Direct Outreach',
-      icon: Send
-    },
-    {
       id: 'post_job',
       label: 'Post New Job',
       subtext: 'Create Vacancy',
@@ -248,7 +228,7 @@ export const SlideSidebar: React.FC<SlideSidebarProps> = ({
     },
     {
       id: 'manage_jobs',
-      label: 'Manage Jobs',
+      label: 'Manage Job Posts',
       subtext: 'Active Openings',
       icon: Briefcase,
       badge: activeJobsCount > 0 ? activeJobsCount : undefined,
@@ -256,36 +236,68 @@ export const SlideSidebar: React.FC<SlideSidebarProps> = ({
     },
     {
       id: 'applications',
-      label: 'Applications',
+      label: 'View Applications',
       subtext: 'Applicant Pipeline',
       icon: FileCheck2,
       badge: applicationsCount > 0 ? applicationsCount : undefined,
       badgeColor: 'bg-blue-600 text-white'
     },
     {
-      id: 'top_companies',
-      label: 'Top Companies',
-      subtext: 'Industry Ecosystem',
-      icon: Building2
-    },
-    {
       id: 'saved_candidates',
-      label: 'Saved Candidates',
-      subtext: 'Bookmarked Roster',
-      icon: Bookmark
+      label: 'Shortlist Candidates',
+      subtext: 'Saved Talent Roster',
+      icon: Bookmark,
+      badge: savedCount > 0 ? savedCount : undefined,
+      badgeColor: 'bg-purple-100 text-purple-800'
     },
     {
       id: 'messages',
-      label: 'Messages',
-      subtext: 'Candidate Chat',
+      label: 'Contact Workers',
+      subtext: 'Direct Candidate Chat',
       icon: MessageSquare,
       badge: unreadMessagesCount > 0 ? unreadMessagesCount : undefined,
       badgeColor: 'bg-amber-600 text-white'
     },
     {
+      id: 'bulk_hiring',
+      label: 'Bulk Hiring',
+      subtext: 'Multi-Worker Requisition',
+      icon: Users,
+      badge: 'Enterprise',
+      badgeColor: 'bg-indigo-100 text-indigo-800'
+    },
+    {
+      id: 'attendance',
+      label: 'Attendance Management',
+      subtext: 'Geofence, QR, Shifts',
+      icon: Clock,
+      badge: 'Operations',
+      badgeColor: 'bg-blue-100 text-blue-800'
+    },
+    {
+      id: 'hiring_requests',
+      label: 'Hiring History',
+      subtext: 'Sent Offers & Logs',
+      icon: Send
+    },
+    {
       id: 'profile',
-      label: 'Business Profile',
-      subtext: 'Verification Details',
+      label: 'Company Profile Settings',
+      subtext: 'Owner & Business Details',
+      icon: Building2
+    },
+    {
+      id: 'trust_centre',
+      label: 'Trust & Verification',
+      subtext: 'GSTIN & Business KYC',
+      icon: ShieldCheck,
+      badge: 'e-KYC',
+      badgeColor: 'bg-emerald-100 text-emerald-800'
+    },
+    {
+      id: 'top_companies',
+      label: 'Top Companies',
+      subtext: 'Industry Ecosystem',
       icon: Building2
     },
     {
@@ -311,7 +323,8 @@ export const SlideSidebar: React.FC<SlideSidebarProps> = ({
       {/* Sidebar Header / Brand */}
       <div className="p-4 sm:p-5 border-b border-gray-100 flex items-center justify-between">
         <div className="flex items-center gap-3 overflow-hidden">
-          <img
+          <AnimatedImage
+            variant="floating"
             src="https://i.ibb.co/jv67DNGx/Jobsetulogo.png"
             alt="JOBSETU"
             className="w-10 h-10 object-contain shrink-0"
@@ -379,17 +392,18 @@ export const SlideSidebar: React.FC<SlideSidebarProps> = ({
             </span>
           </div>
 
-          {/* Progress track */}
-          <div className="w-full h-2 rounded-full bg-slate-200 overflow-hidden mb-2">
-            <div
-              className={`h-full transition-all duration-500 rounded-full ${
+          {/* Animated Progress track */}
+          <div className="mb-2">
+            <AnimatedProgressBar
+              percent={Math.max(profileCompletion, 10)}
+              trackClassName="w-full h-2 rounded-full bg-slate-200 overflow-hidden"
+              barClassName={`h-full rounded-full ${
                 profileCompletion === 100
                   ? 'bg-emerald-500'
                   : isWorker
                   ? 'bg-[#2563EB]'
                   : 'bg-amber-500'
               }`}
-              style={{ width: `${Math.max(profileCompletion, 10)}%` }}
             />
           </div>
 
@@ -436,20 +450,27 @@ export const SlideSidebar: React.FC<SlideSidebarProps> = ({
                 onCloseMobile();
               }}
               title={item.label}
-              className={`w-full flex items-center gap-3 px-3.5 py-2.5 rounded-2xl text-xs transition-all cursor-pointer text-left ${
+              className={`relative w-full flex items-center gap-3 px-3.5 py-2.5 rounded-2xl text-xs transition-all cursor-pointer text-left ${
                 isActive
                   ? `${activeBg} ${activeBorder} shadow-xs`
                   : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100/80'
               } ${isCollapsedDesktop ? 'justify-center px-2' : ''}`}
             >
+              {isActive && (
+                <motion.span
+                  layoutId={`sidebar-active-indicator-${role}`}
+                  transition={{ type: 'spring', stiffness: 360, damping: 28 }}
+                  className={`absolute inset-0 rounded-2xl -z-10 ${isWorker ? 'bg-blue-50' : 'bg-amber-50'}`}
+                />
+              )}
               <Icon
-                className={`w-4 h-4 shrink-0 ${
+                className={`w-4 h-4 shrink-0 relative z-10 ${
                   isActive ? (isWorker ? 'text-[#2563EB]' : 'text-amber-600') : 'text-gray-400'
                 }`}
               />
 
               {!isCollapsedDesktop && (
-                <div className="flex-1 min-w-0 flex items-center justify-between">
+                <div className="relative z-10 flex-1 min-w-0 flex items-center justify-between">
                   <div className="truncate">
                     <p className={`text-xs ${isActive ? 'font-bold' : 'font-medium'}`}>{item.label}</p>
                     {item.subtext && <p className="text-[10px] text-gray-400 truncate">{item.subtext}</p>}
@@ -499,8 +520,8 @@ export const SlideSidebar: React.FC<SlideSidebarProps> = ({
               <div className="min-w-0">
                 <p className="text-xs font-bold text-gray-900 truncate">{userName}</p>
                 <p className="text-[10px] text-gray-500 truncate flex items-center gap-1">
-                  <ShieldCheck className="w-3 h-3 text-emerald-600" />
-                  <span>{isWorker ? 'Job Seeker' : 'Verified Recruiter'}</span>
+                  <ShieldCheck className="w-3 h-3 text-amber-600" />
+                  <span>{isWorker ? 'Job Seeker' : 'Employer Portal'}</span>
                 </p>
               </div>
             )}
@@ -531,17 +552,30 @@ export const SlideSidebar: React.FC<SlideSidebarProps> = ({
       </aside>
 
       {/* Mobile Backdrop & Drawer */}
-      {isOpenMobile && (
-        <div className="fixed inset-0 z-50 lg:hidden flex">
-          <div
-            className="fixed inset-0 bg-black/50 backdrop-blur-xs transition-opacity"
-            onClick={onCloseMobile}
-          />
-          <div className="relative w-72 max-w-[85vw] h-full shadow-2xl z-10 animate-in slide-in-from-left duration-200">
-            {sidebarContent}
-          </div>
-        </div>
-      )}
+      <AnimatePresence>
+        {isOpenMobile && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 lg:hidden flex"
+          >
+            <div
+              className="fixed inset-0 bg-black/50 backdrop-blur-xs"
+              onClick={onCloseMobile}
+            />
+            <motion.div
+              initial={{ x: '-100%' }}
+              animate={{ x: 0 }}
+              exit={{ x: '-100%' }}
+              transition={{ type: 'spring', stiffness: 320, damping: 32 }}
+              className="relative w-72 max-w-[85vw] h-full shadow-2xl z-10"
+            >
+              {sidebarContent}
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </>
   );
 };

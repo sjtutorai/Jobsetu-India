@@ -46,6 +46,19 @@ import { WorkerAttendanceView } from '../attendance/WorkerAttendanceView';
 import { HiringRequestsView } from '../hiring/HiringRequestsView';
 import { TopCompaniesSection } from '../companies/TopCompaniesSection';
 import { TrustVerificationCentre } from '../trust/TrustVerificationCentre';
+import {
+  AnimatedImage,
+  AnimatedProgressBar,
+  NumberCounter,
+  StaggeredCardContainer,
+  StaggeredCardItem,
+  HoverSpotlightCard,
+  TiltCard3D,
+  ParticleBackground,
+  MorphingAccentOrb,
+  RippleContainer,
+  MagneticButton
+} from '../animations';
 
 interface WorkerDashboardProps {
   onEditProfile: () => void;
@@ -322,14 +335,16 @@ export const WorkerDashboard: React.FC<WorkerDashboardProps> = ({
           </div>
 
           <div className="flex items-center gap-2">
-            <button
-              type="button"
-              onClick={() => setActiveTab('jobs_near_me')}
-              className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-[#2563EB] text-white hover:bg-blue-700 text-xs font-extrabold shadow-xs transition-colors cursor-pointer"
-            >
-              <Navigation className="w-3.5 h-3.5" />
-              <span>50 KM Radius</span>
-            </button>
+            <RippleContainer className="rounded-xl">
+              <button
+                type="button"
+                onClick={() => setActiveTab('jobs_near_me')}
+                className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-[#2563EB] text-white hover:bg-blue-700 text-xs font-extrabold shadow-xs transition-colors cursor-pointer jobsetu-liquid-btn"
+              >
+                <Navigation className="w-3.5 h-3.5" />
+                <span>50 KM Radius</span>
+              </button>
+            </RippleContainer>
 
             <button
               type="button"
@@ -352,16 +367,20 @@ export const WorkerDashboard: React.FC<WorkerDashboardProps> = ({
         {activeTab === 'overview' && (
           <div className="space-y-8 animate-in fade-in">
             {/* Welcome Banner */}
-            <div className="relative rounded-3xl bg-gradient-to-r from-blue-700 via-blue-600 to-indigo-700 p-8 sm:p-10 text-white shadow-xl shadow-blue-600/10 overflow-hidden">
+            <div className="relative rounded-3xl bg-gradient-to-r from-blue-700 via-blue-600 to-indigo-700 jobsetu-animated-gradient p-8 sm:p-10 text-white shadow-xl shadow-blue-600/10 overflow-hidden">
+              <ParticleBackground count={8} dotColor="bg-white/20" />
+              <MorphingAccentOrb className="w-72 h-72 -bottom-24 -left-16 bg-white/10 blur-2xl" />
               <div className="absolute right-0 top-0 w-96 h-96 bg-white/10 rounded-full blur-3xl pointer-events-none" />
 
               <div className="relative flex flex-col md:flex-row md:items-center justify-between gap-6">
                 <div className="flex items-center gap-5">
                   {workerProfile?.profilePhoto || userProfile?.profilePhoto ? (
-                    <img
-                      src={workerProfile?.profilePhoto || userProfile?.profilePhoto}
+                    <AnimatedImage
+                      variant="circular"
+                      src={workerProfile?.profilePhoto || userProfile?.profilePhoto || ''}
                       alt={displayFullName}
-                      className="w-20 h-20 rounded-2xl object-cover border-3 border-white/60 shadow-md"
+                      wrapperClassName="w-20 h-20 rounded-2xl overflow-hidden shrink-0 border-3 border-white/60 shadow-md"
+                      className="w-full h-full object-cover"
                     />
                   ) : (
                     <div className="w-20 h-20 rounded-2xl bg-white/20 backdrop-blur-md text-white flex items-center justify-center font-black text-2xl border border-white/30">
@@ -400,22 +419,28 @@ export const WorkerDashboard: React.FC<WorkerDashboardProps> = ({
                 </div>
 
                 <div className="flex flex-wrap items-center gap-3">
-                  <button
-                    type="button"
-                    onClick={() => setActiveTab('jobs_near_me')}
-                    className="py-2.5 px-5 rounded-2xl bg-amber-400 text-slate-950 hover:bg-amber-300 font-black text-xs shadow-md transition-all flex items-center gap-2 cursor-pointer"
-                  >
-                    <Navigation className="w-4 h-4" />
-                    <span>50 KM Radius Radar</span>
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setActiveTab('find_jobs')}
-                    className="py-2.5 px-5 rounded-2xl bg-white text-[#2563EB] hover:bg-blue-50 font-bold text-xs shadow-md transition-all flex items-center gap-2 cursor-pointer"
-                  >
-                    <Search className="w-4 h-4" />
-                    <span>Search Vacancies</span>
-                  </button>
+                  <MagneticButton>
+                    <RippleContainer className="rounded-2xl">
+                      <button
+                        type="button"
+                        onClick={() => setActiveTab('jobs_near_me')}
+                        className="py-2.5 px-5 rounded-2xl bg-amber-400 text-slate-950 hover:bg-amber-300 font-black text-xs shadow-md transition-all flex items-center gap-2 cursor-pointer jobsetu-liquid-btn"
+                      >
+                        <Navigation className="w-4 h-4" />
+                        <span>50 KM Radius Radar</span>
+                      </button>
+                    </RippleContainer>
+                  </MagneticButton>
+                  <RippleContainer className="rounded-2xl">
+                    <button
+                      type="button"
+                      onClick={() => setActiveTab('find_jobs')}
+                      className="py-2.5 px-5 rounded-2xl bg-white text-[#2563EB] hover:bg-blue-50 font-bold text-xs shadow-md transition-all flex items-center gap-2 cursor-pointer"
+                    >
+                      <Search className="w-4 h-4" />
+                      <span>Search Vacancies</span>
+                    </button>
+                  </RippleContainer>
                   <button
                     type="button"
                     onClick={onEditProfile}
@@ -428,7 +453,7 @@ export const WorkerDashboard: React.FC<WorkerDashboardProps> = ({
               </div>
 
               {/* Profile Completion Bar inside banner */}
-              <div className="mt-8 pt-6 border-t border-white/15">
+              <div className="relative mt-8 pt-6 border-t border-white/15">
                 <div className="flex items-center justify-between text-xs font-bold text-white mb-2">
                   <span className="flex items-center gap-1.5">
                     <CheckCircle2 className="w-4 h-4 text-emerald-300" />
@@ -436,12 +461,11 @@ export const WorkerDashboard: React.FC<WorkerDashboardProps> = ({
                   </span>
                   <span>{profileCompletionPercent}% Completed</span>
                 </div>
-                <div className="w-full bg-white/20 h-2.5 rounded-full overflow-hidden">
-                  <div
-                    className="bg-emerald-400 h-full rounded-full transition-all duration-500"
-                    style={{ width: `${profileCompletionPercent}%` }}
-                  />
-                </div>
+                <AnimatedProgressBar
+                  percent={profileCompletionPercent}
+                  trackClassName="w-full bg-white/20 h-2.5 rounded-full overflow-hidden"
+                  barClassName="bg-emerald-400 h-full rounded-full"
+                />
               </div>
             </div>
 
@@ -539,71 +563,99 @@ export const WorkerDashboard: React.FC<WorkerDashboardProps> = ({
             </div>
 
             {/* Primary Spotlight Card: Employers Who Contacted You */}
-            <div className="bg-gradient-to-r from-emerald-600 via-teal-600 to-emerald-700 rounded-3xl p-6 sm:p-7 text-white shadow-lg shadow-emerald-600/15 flex flex-col md:flex-row md:items-center justify-between gap-5">
-              <div className="flex items-center gap-4">
-                <div className="w-14 h-14 rounded-2xl bg-white/20 backdrop-blur-xs flex items-center justify-center shrink-0 border border-white/30">
-                  <PhoneCall className="w-7 h-7 text-white" />
-                </div>
-                <div>
-                  <div className="flex items-center gap-2">
-                    <span className="text-[10px] font-black uppercase tracking-wider bg-black/20 text-emerald-100 px-2 py-0.5 rounded-full">
-                      Direct Recruiter Connections
-                    </span>
-                    {employersContactedCount > 0 && (
-                      <span className="text-[10px] font-black bg-white text-emerald-900 px-2 py-0.5 rounded-full">
-                        Active Inquiries
-                      </span>
-                    )}
+            <HoverSpotlightCard spotlightColor="rgba(255, 255, 255, 0.12)" className="rounded-3xl jobsetu-neon-glow">
+              <div className="bg-gradient-to-r from-emerald-600 via-teal-600 to-emerald-700 rounded-3xl p-6 sm:p-7 text-white shadow-lg shadow-emerald-600/15 flex flex-col md:flex-row md:items-center justify-between gap-5">
+                <div className="flex items-center gap-4">
+                  <div className="w-14 h-14 rounded-2xl bg-white/20 backdrop-blur-xs flex items-center justify-center shrink-0 border border-white/30 jobsetu-float-3d">
+                    <PhoneCall className="w-7 h-7 text-white" />
                   </div>
-                  <h2 className="text-2xl sm:text-3xl font-black mt-1 text-white">
-                    {employersContactedCount} {employersContactedCount === 1 ? 'Employer' : 'Employers'} Contacted You
-                  </h2>
-                  <p className="text-xs text-emerald-100 mt-0.5">
-                    {conversations.length} direct recruitment chat inquiries &bull; {shortlistedCount} callback & interview invitations received.
-                  </p>
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <span className="text-[10px] font-black uppercase tracking-wider bg-black/20 text-emerald-100 px-2 py-0.5 rounded-full">
+                        Direct Recruiter Connections
+                      </span>
+                      {employersContactedCount > 0 && (
+                        <span className="text-[10px] font-black bg-white text-emerald-900 px-2 py-0.5 rounded-full">
+                          Active Inquiries
+                        </span>
+                      )}
+                    </div>
+                    <h2 className="text-2xl sm:text-3xl font-black mt-1 text-white">
+                      <NumberCounter value={employersContactedCount} /> {employersContactedCount === 1 ? 'Employer' : 'Employers'} Contacted You
+                    </h2>
+                    <p className="text-xs text-emerald-100 mt-0.5">
+                      {conversations.length} direct recruitment chat inquiries &bull; {shortlistedCount} callback & interview invitations received.
+                    </p>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-2 shrink-0">
+                  <RippleContainer className="rounded-xl">
+                    <button
+                      type="button"
+                      onClick={() => setActiveTab('messages')}
+                      className="py-2.5 px-4 rounded-xl bg-white text-emerald-800 hover:bg-emerald-50 text-xs font-bold transition-all shadow-xs flex items-center gap-1.5 cursor-pointer"
+                    >
+                      <MessageSquare className="w-4 h-4 text-emerald-700" />
+                      <span>View Contact Inquiries</span>
+                    </button>
+                  </RippleContainer>
                 </div>
               </div>
-
-              <div className="flex items-center gap-2 shrink-0">
-                <button
-                  type="button"
-                  onClick={() => setActiveTab('messages')}
-                  className="py-2.5 px-4 rounded-xl bg-white text-emerald-800 hover:bg-emerald-50 text-xs font-bold transition-all shadow-xs flex items-center gap-1.5 cursor-pointer"
-                >
-                  <MessageSquare className="w-4 h-4 text-emerald-700" />
-                  <span>View Contact Inquiries</span>
-                </button>
-              </div>
-            </div>
+            </HoverSpotlightCard>
 
             {/* Metrics Cards */}
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-              <div className="bg-white rounded-3xl p-5 shadow-xs border border-gray-200">
-                <span className="text-2xl font-black text-gray-900 block">{availableJobsCount}</span>
-                <span className="text-xs font-semibold text-gray-500 mt-1 block">Live Available Jobs</span>
-              </div>
+            <StaggeredCardContainer className="grid grid-cols-2 sm:grid-cols-4 gap-4" staggerDelay={0.07}>
+              <StaggeredCardItem>
+                <TiltCard3D maxTilt={4} className="h-full">
+                  <HoverSpotlightCard className="bg-white rounded-3xl p-5 shadow-xs border border-gray-200 h-full">
+                    <span className="text-2xl font-black text-gray-900 block">
+                      <NumberCounter value={availableJobsCount} />
+                    </span>
+                    <span className="text-xs font-semibold text-gray-500 mt-1 block">Live Available Jobs</span>
+                  </HoverSpotlightCard>
+                </TiltCard3D>
+              </StaggeredCardItem>
 
-              <div
-                onClick={() => setActiveTab('jobs_near_me')}
-                className="bg-blue-50/70 hover:bg-blue-100/80 rounded-3xl p-5 shadow-xs border-2 border-blue-200 cursor-pointer transition-all"
-              >
-                <span className="text-2xl font-black text-[#2563EB] block">{jobsNearYou.length}</span>
-                <span className="text-xs font-extrabold text-blue-900 mt-1 flex items-center gap-1">
-                  <span>In 50 KM Radius</span>
-                  <ArrowRight className="w-3 h-3" />
-                </span>
-              </div>
+              <StaggeredCardItem>
+                <TiltCard3D maxTilt={4} className="h-full">
+                  <HoverSpotlightCard
+                    onClick={() => setActiveTab('jobs_near_me')}
+                    className="bg-blue-50/70 hover:bg-blue-100/80 rounded-3xl p-5 shadow-xs border-2 border-blue-200 cursor-pointer transition-all h-full"
+                  >
+                    <span className="text-2xl font-black text-[#2563EB] block">
+                      <NumberCounter value={jobsNearYou.length} />
+                    </span>
+                    <span className="text-xs font-extrabold text-blue-900 mt-1 flex items-center gap-1">
+                      <span>In 50 KM Radius</span>
+                      <ArrowRight className="w-3 h-3" />
+                    </span>
+                  </HoverSpotlightCard>
+                </TiltCard3D>
+              </StaggeredCardItem>
 
-              <div className="bg-white rounded-3xl p-5 shadow-xs border border-gray-200">
-                <span className="text-2xl font-black text-amber-600 block">{applicationsSentCount}</span>
-                <span className="text-xs font-semibold text-gray-500 mt-1 block">Applications Sent</span>
-              </div>
+              <StaggeredCardItem>
+                <TiltCard3D maxTilt={4} className="h-full">
+                  <HoverSpotlightCard spotlightColor="rgba(245, 158, 11, 0.1)" className="bg-white rounded-3xl p-5 shadow-xs border border-gray-200 h-full">
+                    <span className="text-2xl font-black text-amber-600 block">
+                      <NumberCounter value={applicationsSentCount} />
+                    </span>
+                    <span className="text-xs font-semibold text-gray-500 mt-1 block">Applications Sent</span>
+                  </HoverSpotlightCard>
+                </TiltCard3D>
+              </StaggeredCardItem>
 
-              <div className="bg-white rounded-3xl p-5 shadow-xs border border-gray-200">
-                <span className="text-2xl font-black text-emerald-600 block">{shortlistedCount}</span>
-                <span className="text-xs font-semibold text-gray-500 mt-1 block">Shortlisted / Calls</span>
-              </div>
-            </div>
+              <StaggeredCardItem>
+                <TiltCard3D maxTilt={4} className="h-full">
+                  <HoverSpotlightCard spotlightColor="rgba(16, 185, 129, 0.1)" className="bg-white rounded-3xl p-5 shadow-xs border border-gray-200 h-full">
+                    <span className="text-2xl font-black text-emerald-600 block">
+                      <NumberCounter value={shortlistedCount} />
+                    </span>
+                    <span className="text-xs font-semibold text-gray-500 mt-1 block">Shortlisted / Calls</span>
+                  </HoverSpotlightCard>
+                </TiltCard3D>
+              </StaggeredCardItem>
+            </StaggeredCardContainer>
 
             {/* SECTION 1: Jobs Near You (<50 km radius) */}
             <div className="space-y-4">
@@ -915,6 +967,44 @@ export const WorkerDashboard: React.FC<WorkerDashboardProps> = ({
               </button>
             </div>
 
+            {/* Verification Status Strip */}
+            <div className="flex flex-wrap items-center gap-2">
+              <span
+                className={`px-3 py-1 rounded-xl text-[11px] font-bold border ${
+                  workerProfile?.mobileOtpVerified
+                    ? 'bg-emerald-50 border-emerald-200 text-emerald-700'
+                    : 'bg-slate-50 border-slate-200 text-slate-500'
+                }`}
+              >
+                {workerProfile?.mobileOtpVerified ? '✓ Mobile OTP Verified' : 'Mobile Unverified'}
+              </span>
+              <span
+                className={`px-3 py-1 rounded-xl text-[11px] font-bold border ${
+                  workerProfile?.emailVerified
+                    ? 'bg-emerald-50 border-emerald-200 text-emerald-700'
+                    : 'bg-slate-50 border-slate-200 text-slate-500'
+                }`}
+              >
+                {workerProfile?.emailVerified ? '✓ Email Verified' : 'Email Unverified'}
+              </span>
+              <span
+                className={`px-3 py-1 rounded-xl text-[11px] font-bold border ${
+                  workerProfile?.identityVerificationStatus === 'Verified'
+                    ? 'bg-emerald-50 border-emerald-200 text-emerald-700'
+                    : 'bg-amber-50 border-amber-200 text-amber-700'
+                }`}
+              >
+                {workerProfile?.identityVerificationStatus === 'Verified'
+                  ? `✓ ID Verified (${workerProfile?.identityVerificationProvider || 'Authorized'})`
+                  : 'ID Verification Pending'}
+              </span>
+              {workerProfile?.digilockerLinked && (
+                <span className="px-3 py-1 rounded-xl text-[11px] font-bold bg-indigo-50 border border-indigo-200 text-indigo-700">
+                  ✓ DigiLocker Linked
+                </span>
+              )}
+            </div>
+
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
               <div className="p-4 rounded-2xl bg-slate-50 border border-slate-100">
                 <span className="text-[10px] uppercase font-bold text-gray-400 block">Email Address</span>
@@ -935,28 +1025,70 @@ export const WorkerDashboard: React.FC<WorkerDashboardProps> = ({
                 </span>
               </div>
               <div className="p-4 rounded-2xl bg-slate-50 border border-slate-100">
-                <span className="text-[10px] uppercase font-bold text-gray-400 block">Gender</span>
+                <span className="text-[10px] uppercase font-bold text-gray-400 block">Gender & Language</span>
                 <span className="text-sm font-bold text-gray-900 mt-1 block capitalize">
-                  {workerProfile?.gender || 'Not specified'}
+                  {workerProfile?.gender || 'Not specified'} &bull; {workerProfile?.preferredLanguage || 'Hindi'}
                 </span>
               </div>
               <div className="p-4 rounded-2xl bg-slate-50 border border-slate-100">
-                <span className="text-[10px] uppercase font-bold text-gray-400 block">Experience Level</span>
+                <span className="text-[10px] uppercase font-bold text-gray-400 block">Experience & Previous Role</span>
                 <span className="text-sm font-bold text-gray-900 mt-1 block">
                   {workerProfile?.experience || 'Fresher'}
+                  {workerProfile?.previousJobRole ? ` (${workerProfile.previousJobRole})` : ''}
                 </span>
               </div>
               <div className="p-4 rounded-2xl bg-slate-50 border border-slate-100">
                 <span className="text-[10px] uppercase font-bold text-gray-400 block">Highest Education</span>
                 <span className="text-sm font-bold text-gray-900 mt-1 block">
                   {workerProfile?.education || 'Secondary'}
+                  {workerProfile?.schoolOrCollegeName ? ` — ${workerProfile.schoolOrCollegeName}` : ''}
+                  {workerProfile?.passingYear ? ` (${workerProfile.passingYear})` : ''}
+                </span>
+              </div>
+              <div className="p-4 rounded-2xl bg-slate-50 border border-slate-100">
+                <span className="text-[10px] uppercase font-bold text-gray-400 block">Preferred Location & Radius</span>
+                <span className="text-sm font-bold text-gray-900 mt-1 block">
+                  {(workerProfile?.jobPreferences?.preferredLocations || []).join(', ') || workerProfile?.city || 'India'} ({workerProfile?.jobPreferences?.preferredSearchRadiusKm || 50} km)
+                </span>
+              </div>
+              <div className="p-4 rounded-2xl bg-slate-50 border border-slate-100">
+                <span className="text-[10px] uppercase font-bold text-gray-400 block">Expected Compensation</span>
+                <span className="text-sm font-bold text-emerald-700 mt-1 block">
+                  {workerProfile?.jobPreferences?.expectedSalary || '₹18,000/mo'}
+                  {workerProfile?.jobPreferences?.expectedDailyWage ? ` • ${workerProfile.jobPreferences.expectedDailyWage}` : ''}
+                </span>
+              </div>
+              <div className="p-4 rounded-2xl bg-slate-50 border border-slate-100">
+                <span className="text-[10px] uppercase font-bold text-gray-400 block">Joining & Relocation</span>
+                <span className="text-sm font-bold text-gray-900 mt-1 block">
+                  {workerProfile?.jobPreferences?.availability || 'Immediate'}
+                  {workerProfile?.jobPreferences?.willingToRelocate ? ' • Open to Relocate' : ''}
+                  {workerProfile?.jobPreferences?.accommodationRequired ? ' • Needs Stay' : ''}
                 </span>
               </div>
             </div>
 
+            {(workerProfile?.selectedProfessions || []).length > 0 && (
+              <div>
+                <h3 className="text-xs font-bold text-gray-900 uppercase tracking-wider mb-2">
+                  Selected Professions
+                </h3>
+                <div className="flex flex-wrap gap-1.5">
+                  {(workerProfile?.selectedProfessions || []).map((prof) => (
+                    <span
+                      key={prof}
+                      className="px-3 py-1 rounded-xl bg-amber-50 text-amber-800 text-xs font-bold border border-amber-200"
+                    >
+                      {prof}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            )}
+
             <div>
               <h3 className="text-xs font-bold text-gray-900 uppercase tracking-wider mb-2">
-                Registered Vocational Skills
+                Registered Vocational & Professional Skills
               </h3>
               <div className="flex flex-wrap gap-1.5">
                 {(workerProfile?.skills || []).map((sk) => (
