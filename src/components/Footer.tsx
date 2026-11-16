@@ -26,16 +26,18 @@ export const Footer: React.FC<FooterProps> = ({ onOpenModal }) => {
           <StaggeredCardItem className="lg:col-span-2 space-y-4">
             <div className="flex items-center gap-3">
               <ScrollDrivenRotation degrees={90}>
-                <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-[#2563EB] to-blue-600 flex items-center justify-center text-white shadow-lg shadow-blue-500/20 jobsetu-float-3d">
-                  <Briefcase className="w-5 h-5" />
-                </div>
+                <img
+                  src="/jobsetu-logo.png"
+                  alt="Jobsetu India"
+                  className="w-10 h-10 rounded-xl bg-white object-contain p-1 shadow-lg shadow-blue-500/20 jobsetu-float-3d"
+                />
               </ScrollDrivenRotation>
               <span className="text-2xl font-black tracking-tight text-white">
                 JOB<span className="text-[#2563EB]">SETU</span>
               </span>
             </div>
             <p className="text-sm font-semibold text-[#F59E0B]">
-              Connecting People. Creating Opportunities.
+              Connecting India. Creating Opportunities.
             </p>
             <p className="text-sm text-gray-400 leading-relaxed max-w-sm">
               JOBSETU connects job seekers with verified employers across every state and union territory in India. Empowering Bharat's workforce through trusted, direct employment connectivity.

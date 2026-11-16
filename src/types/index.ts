@@ -757,7 +757,7 @@ export interface WorkHistoryRecord {
   createdAt?: any;
 }
 
-export const APP_LOGO_URL = 'https://i.ibb.co/jv67DNGx/Jobsetulogo.png';
+export const APP_LOGO_URL = '/jobsetu-logo.png';
 
 // ==================== PART 4: OCCUPATION CLASSIFICATION ====================
 export interface OccupationGroup {

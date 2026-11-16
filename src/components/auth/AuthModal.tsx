@@ -277,8 +277,8 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                 <div className="flex items-center gap-2.5">
                   <AnimatedImage
                     variant="floating"
-                    src="https://i.ibb.co/jv67DNGx/Jobsetulogo.png"
-                    alt="JOBSETU Logo"
+                    src="/jobsetu-logo.png"
+                    alt="Jobsetu India Logo"
                     className="w-10 h-10 rounded-xl bg-white object-contain p-1 shadow-lg shrink-0"
                   />
               <div>

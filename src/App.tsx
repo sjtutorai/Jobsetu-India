@@ -588,8 +588,8 @@ function MainApp() {
       <div className="min-h-screen bg-slate-50 flex flex-col items-center justify-center p-4">
         <AnimatedImage
           variant="morphTransition"
-          src="https://i.ibb.co/jv67DNGx/Jobsetulogo.png"
-          alt="JOBSETU Logo"
+          src="/jobsetu-logo.png"
+          alt="Jobsetu India Logo"
           className="w-20 h-20 rounded-2xl object-contain bg-white border border-gray-100 shadow-xl shadow-blue-500/15 p-2 mb-4 jobsetu-float-3d"
         />
         <p className="text-sm font-extrabold text-gray-800 tracking-tight">

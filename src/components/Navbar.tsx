@@ -77,8 +77,8 @@ export const Navbar: React.FC<NavbarProps> = ({
           >
             <AnimatedImage
               variant="tilt3d"
-              src="https://i.ibb.co/jv67DNGx/Jobsetulogo.png"
-              alt="JOBSETU"
+              src="/jobsetu-logo.png"
+              alt="Jobsetu India"
               className="h-12 w-auto object-contain group-hover:scale-105 transition-transform drop-shadow-sm"
             />
             <div className="flex flex-col">

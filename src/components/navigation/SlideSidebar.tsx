@@ -331,8 +331,8 @@ export const SlideSidebar: React.FC<SlideSidebarProps> = ({
         <div className="flex items-center gap-3 overflow-hidden">
           <AnimatedImage
             variant="floating"
-            src="https://i.ibb.co/jv67DNGx/Jobsetulogo.png"
-            alt="JOBSETU"
+            src="/jobsetu-logo.png"
+            alt="Jobsetu India"
             className="w-10 h-10 object-contain shrink-0"
           />
           {!isCollapsedDesktop && (
