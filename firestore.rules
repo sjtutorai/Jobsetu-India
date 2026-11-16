@@ -328,5 +328,40 @@ service cloud.firestore {
       allow create: if isValidId(logId);
       allow update, delete: if isAdmin();
     }
+
+    // WorkPass Employment History Records (Self-Reported & Verified)
+    match /workHistory/{recordId} {
+      allow get, list: if true;
+      allow create: if isValidId(recordId) && isOwner(incoming().workerUid);
+      allow update: if isValidId(recordId) && (
+        isOwner(resource.data.workerUid) || isAdmin()
+      );
+      allow delete: if isValidId(recordId) && (
+        isOwner(resource.data.workerUid) || isAdmin()
+      );
+    }
+
+    // Support & Fraud Escalation Tickets
+    match /supportTickets/{ticketId} {
+      allow get, list: if true;
+      allow create: if isValidId(ticketId) && isOwner(incoming().userId);
+      allow update: if isValidId(ticketId) && (
+        isOwner(resource.data.userId) || isAdmin()
+      );
+      allow delete: if isAdmin();
+    }
+
+    // Master Job Category Taxonomy (A-W)
+    match /categories/{categoryId} {
+      allow get, list: if true;
+      allow write: if isAdmin();
+    }
+
+    // Admin Audit Logs
+    match /auditLogs/{logId} {
+      allow get, list: if isAdmin();
+      allow create: if isValidId(logId);
+      allow update, delete: if false;
+    }
   }
 }

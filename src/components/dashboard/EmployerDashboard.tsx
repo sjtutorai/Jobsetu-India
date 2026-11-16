@@ -12,6 +12,7 @@ import { ChatCenter } from '../messaging/ChatCenter';
 import { NotificationCenter } from '../notifications/NotificationCenter';
 import { SlideSidebar } from '../navigation/SlideSidebar';
 import { SettingsView } from '../common/SettingsView';
+import { SupportCenterView } from '../common/SupportCenterView';
 import { ChangeLocationModal } from '../common/ChangeLocationModal';
 import { WorkersNearMeView } from '../location/WorkersNearMeView';
 import { EmployerAttendanceView } from '../attendance/EmployerAttendanceView';
@@ -99,6 +100,7 @@ export type EmployerTab =
   | 'messages'
   | 'profile'
   | 'notifications'
+  | 'support'
   | 'settings';
 
 const EMPLOYER_TAB_TO_SLUG: Record<EmployerTab, string> = {
@@ -116,6 +118,7 @@ const EMPLOYER_TAB_TO_SLUG: Record<EmployerTab, string> = {
   messages: '/findemployee/messages',
   profile: '/findemployee/profile',
   notifications: '/findemployee/notifications',
+  support: '/findemployee/support',
   settings: '/findemployee/settings'
 };
 
@@ -128,19 +131,20 @@ const parseEmployerTabFromPath = (pathname: string): EmployerTab => {
   ) {
     return 'workers_near_me';
   }
-  if (clean === '/findemployee/post-job') return 'post_job';
-  if (clean === '/findemployee/manage-jobs') return 'manage_jobs';
-  if (clean === '/findemployee/find-workers') return 'find_workers';
+  if (clean === '/findemployee/post-job' || clean === '/dashboard/employer/jobs/new') return 'post_job';
+  if (clean === '/findemployee/manage-jobs' || clean === '/dashboard/employer/jobs') return 'manage_jobs';
+  if (clean === '/findemployee/find-workers' || clean === '/dashboard/employer/candidates') return 'find_workers';
   if (clean === '/findemployee/bulk-hiring') return 'bulk_hiring';
-  if (clean === '/findemployee/trust-centre') return 'trust_centre';
+  if (clean === '/findemployee/trust-centre' || clean === '/dashboard/employer/verification') return 'trust_centre';
   if (clean === '/findemployee/attendance') return 'attendance';
   if (clean === '/findemployee/hiring-requests') return 'hiring_requests';
-  if (clean === '/findemployee/applications') return 'applications';
+  if (clean === '/findemployee/applications' || clean === '/dashboard/employer/applicants') return 'applications';
   if (clean === '/findemployee/saved-candidates') return 'saved_candidates';
-  if (clean === '/findemployee/messages') return 'messages';
-  if (clean === '/findemployee/profile') return 'profile';
-  if (clean === '/findemployee/notifications') return 'notifications';
-  if (clean === '/findemployee/settings') return 'settings';
+  if (clean === '/findemployee/messages' || clean === '/dashboard/employer/messages') return 'messages';
+  if (clean === '/findemployee/profile' || clean === '/dashboard/employer/company') return 'profile';
+  if (clean === '/findemployee/notifications' || clean === '/dashboard/employer/notifications') return 'notifications';
+  if (clean === '/findemployee/support' || clean === '/support') return 'support';
+  if (clean === '/findemployee/settings' || clean === '/settings') return 'settings';
   return 'overview';
 };
 
@@ -620,6 +624,7 @@ export const EmployerDashboard: React.FC<EmployerDashboardProps> = ({
                   {activeTab === 'saved_candidates' && 'Shortlisted & Saved Candidates'}
                   {activeTab === 'messages' && 'Contact Workers & Messages'}
                   {activeTab === 'profile' && 'Company Profile Settings & Saved Details'}
+                  {activeTab === 'support' && 'Support Tickets & Escalations'}
                   {activeTab === 'settings' && 'Platform Settings'}
                   {activeTab === 'notifications' && 'Notifications'}
                 </h1>
@@ -2321,6 +2326,13 @@ export const EmployerDashboard: React.FC<EmployerDashboardProps> = ({
                   setActiveTab('messages');
                 }}
               />
+            </div>
+          )}
+
+          {/* TAB: SUPPORT & ESCALATIONS */}
+          {activeTab === 'support' && (
+            <div className="animate-in fade-in">
+              <SupportCenterView />
             </div>
           )}
 

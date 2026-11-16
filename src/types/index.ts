@@ -574,31 +574,188 @@ export const INDIAN_STATES_AND_UTS = [
 ];
 
 export const SKILL_CATEGORIES_DATA: Record<string, string[]> = {
-  'Retail': ['Sales', 'Cashier', 'Customer service', 'Store management', 'Inventory handling', 'Billing'],
-  'Hospitality': ['Cooking', 'Kitchen assistance', 'Restaurant service', 'Housekeeping', 'Food presentation', 'Barista'],
-  'Technical': ['Electrician', 'Plumbing', 'Welding', 'Computer operation', 'Mechanical work', 'Appliance repair', 'Carpentry'],
-  'Transport': ['Driving', 'Delivery', 'Logistics', 'Forklift operation', 'Fleet coordination'],
-  'Office': ['Data entry', 'Reception', 'Administration', 'Accounting', 'Tally', 'Document filing'],
-  'Education': ['Teaching', 'Tutoring', 'Training', 'Curriculum support', 'Childcare'],
-  'Digital': ['Graphic design', 'Video editing', 'Programming', 'Digital marketing', 'Social media handling', 'Content writing'],
-  'Agriculture': ['Farm operations', 'Gardening', 'Agricultural support', 'Dairy farming', 'Crop harvesting']
+  'A. Construction, building and infrastructure': [
+    'General construction worker', 'Mason / bricklayer', 'Concrete worker', 'Shuttering carpenter',
+    'Steel fixer', 'Painter', 'Plasterer', 'Tile fitter', 'Flooring installer', 'Roofer',
+    'Waterproofing technician', 'Civil site supervisor', 'Site engineer', 'Surveying assistant',
+    'Road construction worker', 'Heavy equipment operator', 'Building maintenance technician', 'Interior installation worker'
+  ],
+  'B. Electrical, electronics and renewable energy': [
+    'Electrician', 'Electrical helper', 'Industrial electrician', 'Panel technician', 'Wiring technician',
+    'Electronics repair technician', 'Solar panel installer', 'Solar maintenance technician',
+    'Inverter / UPS technician', 'CCTV installer', 'Fire alarm technician', 'Lift / elevator technician',
+    'Telecom technician', 'Electrical supervisor'
+  ],
+  'C. Plumbing, water and sanitation': [
+    'Plumber', 'Plumbing helper', 'Pipe fitter', 'Pump operator', 'Water treatment technician',
+    'RO service technician', 'Drainage technician', 'Sanitation worker', 'Irrigation technician', 'HVAC water-system technician'
+  ],
+  'D. Mechanical, automotive and fabrication': [
+    'Two-wheeler mechanic', 'Car mechanic', 'Diesel mechanic', 'Truck mechanic', 'Tractor mechanic',
+    'Auto electrician', 'Vehicle service advisor', 'Welder', 'Fabricator', 'CNC operator', 'Lathe operator',
+    'Machine operator', 'Industrial maintenance technician', 'Production technician', 'Quality inspector', 'Tool-room technician'
+  ],
+  'E. Manufacturing, factory and industrial operations': [
+    'Assembly-line worker', 'Packaging worker', 'Factory helper', 'Machine operator', 'Production supervisor',
+    'Quality-control assistant', 'Quality engineer', 'Maintenance fitter', 'Store / inventory assistant',
+    'Safety assistant', 'Process technician', 'Textile machine operator', 'Food-processing worker'
+  ],
+  'F. Logistics, transport and warehousing': [
+    'Delivery associate', 'Courier worker', 'Warehouse associate', 'Picker / packer', 'Inventory controller',
+    'Forklift operator (appropriately licensed)', 'Loading / unloading worker', 'Fleet coordinator',
+    'Dispatch executive', 'Supply-chain analyst', 'Transport supervisor', 'Commercial driver (valid licence required)',
+    'Bus / truck driver (appropriate licence required)'
+  ],
+  'G. Agriculture, farming and allied work': [
+    'Farm worker', 'Crop-care worker', 'Irrigation worker', 'Tractor operator (qualified)', 'Dairy farm assistant',
+    'Poultry farm worker', 'Horticulture worker', 'Nursery worker', 'Food-grain processing worker',
+    'Agricultural equipment technician', 'Farm supervisor', 'Aquaculture worker', 'Agricultural sales representative'
+  ],
+  'H. Domestic, facility and maintenance services': [
+    'Housekeeping staff', 'Office cleaner', 'Residential cleaner', 'Cook', 'Home maintenance technician',
+    'Gardener', 'Laundry worker', 'Pest-management technician (properly licensed)', 'Facility supervisor',
+    'Building caretaker', 'Waste-management worker', 'Water-tank cleaning technician'
+  ],
+  'I. Hospitality, tourism and food services': [
+    'Hotel front-office associate', 'Receptionist', 'Housekeeping associate', 'Chef', 'Assistant cook',
+    'Kitchen helper', 'Restaurant service staff', 'Barista', 'Bakery assistant', 'Catering staff',
+    'Event service staff', 'Travel desk associate', 'Tour guide (where qualified)', 'Hotel manager', 'Restaurant manager'
+  ],
+  'J. Retail, sales and customer service': [
+    'Retail sales associate', 'Cashier', 'Store assistant', 'Store manager', 'Merchandiser',
+    'Field sales executive', 'Business development executive', 'Customer support associate',
+    'Call-centre agent', 'Telecaller', 'Customer success associate', 'Visual merchandiser', 'Retail inventory assistant'
+  ],
+  'K. Office, administration and business operations': [
+    'Office assistant', 'Receptionist', 'Data-entry operator', 'Administrative assistant', 'Executive assistant',
+    'Office manager', 'HR assistant', 'Recruitment coordinator', 'Payroll assistant', 'Accountant',
+    'Bookkeeper', 'Auditor (qualified)', 'Procurement assistant', 'Operations executive', 'Compliance associate'
+  ],
+  'L. Banking, finance, insurance and accounting': [
+    'Accounts assistant', 'Accountant', 'Tax assistant', 'Financial analyst', 'Banking operations associate',
+    'Insurance advisor (appropriately authorised)', 'Loan operations associate', 'Claims processor',
+    'Risk analyst', 'Credit analyst', 'Financial controller', 'Company secretary professional (qualified)'
+  ],
+  'M. Information technology and software': [
+    'Frontend developer', 'Backend developer', 'Full-stack developer', 'Mobile app developer', 'QA tester',
+    'Automation tester', 'DevOps engineer', 'Cloud engineer', 'Cybersecurity analyst', 'IT support technician',
+    'System administrator', 'Network engineer', 'Database administrator', 'Data engineer', 'AI / ML engineer',
+    'Product manager', 'UI developer'
+  ],
+  'N. Design, media, content and creative work': [
+    'Graphic designer', 'UI designer', 'UX designer', 'Video editor', 'Photographer', 'Videographer',
+    'Animator', 'Motion designer', 'Content writer', 'Copywriter', 'Translator', 'Proofreader',
+    'Social media manager', 'Digital content creator', 'Illustrator', 'Audio editor'
+  ],
+  'O. Education, training and tutoring': [
+    'School teacher (eligible and qualified)', 'Tutor', 'Subject trainer', 'Language trainer', 'Computer instructor',
+    'Vocational trainer', 'Teaching assistant', 'Academic coordinator', 'Special educator (qualified)',
+    'Education counsellor', 'Instructional designer', 'Corporate trainer'
+  ],
+  'P. Healthcare and allied health': [
+    'Registered nurse', 'Doctor (registered and qualified)', 'Pharmacist (registered and qualified)',
+    'Lab technician (qualified)', 'Radiology technician (qualified)', 'Physiotherapist (qualified)',
+    'Dental assistant', 'Medical receptionist', 'Hospital administrator', 'Medical records assistant',
+    'Healthcare support worker', 'Emergency medical technician (qualified)'
+  ],
+  'Q. Science, engineering and professional services': [
+    'Civil engineer', 'Mechanical engineer', 'Electrical engineer', 'Electronics engineer', 'Chemical engineer',
+    'Environmental engineer', 'Architect (registered where required)', 'Interior designer', 'Quantity surveyor',
+    'Research assistant', 'Laboratory technician', 'Quality engineer', 'Technical consultant'
+  ],
+  'R. Legal, compliance and public-facing professional services': [
+    'Legal assistant', 'Advocate (enrolled and qualified)', 'Legal researcher', 'Compliance analyst',
+    'Company-law professional', 'Documentation executive', 'Public relations executive', 'Policy researcher',
+    'Customer grievance associate'
+  ],
+  'S. Beauty, wellness, fitness and personal services': [
+    'Hair stylist', 'Beautician', 'Makeup artist', 'Salon receptionist', 'Spa therapist (appropriately trained)',
+    'Fitness trainer (qualified)', 'Yoga instructor (qualified)', 'Sports coach (qualified)', 'Personal care service provider'
+  ],
+  'T. Security and safety services': [
+    'Security guard (legally eligible and trained)', 'Security supervisor', 'Safety officer (qualified)',
+    'Fire-safety technician', 'CCTV monitoring operator', 'Emergency-response coordinator'
+  ],
+  'U. Freelance, consulting and independent work': [
+    'Freelance developer', 'Freelance designer', 'Independent writer', 'Translator', 'Consultant',
+    'Virtual assistant', 'Online tutor', 'Independent photographer', 'Project-based analyst',
+    'Business consultant', 'Remote specialist'
+  ],
+  'V. Government, public-sector and regulated vacancies': [
+    'Public-sector vacancy listings', 'Government recruitment notices', 'Public institution opportunities',
+    'Apprenticeship notices for eligible adults', 'Public-sector contract roles'
+  ],
+  'W. Other and emerging occupations': [
+    'Green-energy technician', 'EV service technician', 'Drone technician (authorised)', 'Robotics technician',
+    '3D-printing operator', 'E-commerce operations associate', 'Repair and reuse technician', 'Other admin-approved occupation'
+  ]
 };
 
 export const BUSINESS_CATEGORIES = [
-  'Construction',
-  'Manufacturing',
-  'Agriculture',
-  'Transportation',
-  'IT & Software',
-  'Retail',
-  'Hospitality',
-  'Healthcare',
-  'Education',
-  'Security Services',
-  'Cleaning Services',
-  'Coaching Classes / Education Institute',
-  'Other'
+  'Construction, building and infrastructure',
+  'Electrical, electronics and renewable energy',
+  'Plumbing, water and sanitation',
+  'Mechanical, automotive and fabrication',
+  'Manufacturing, factory and industrial operations',
+  'Logistics, transport and warehousing',
+  'Agriculture, farming and allied work',
+  'Domestic, facility and maintenance services',
+  'Hospitality, tourism and food services',
+  'Retail, sales and customer service',
+  'Office, administration and business operations',
+  'Banking, finance, insurance and accounting',
+  'Information technology and software',
+  'Design, media, content and creative work',
+  'Education, training and tutoring',
+  'Healthcare and allied health',
+  'Science, engineering and professional services',
+  'Legal, compliance and public-facing professional services',
+  'Beauty, wellness, fitness and personal services',
+  'Security and safety services',
+  'Freelance, consulting and independent work',
+  'Government, public-sector and regulated vacancies',
+  'Other and emerging occupations'
 ];
+
+export type AdminRoleType =
+  | 'Super Admin'
+  | 'Verification Admin'
+  | 'Job Moderator'
+  | 'Support Admin'
+  | 'Analytics Admin';
+
+export interface SupportTicket {
+  id: string;
+  referenceId: string;
+  userId: string;
+  userName: string;
+  userEmail: string;
+  userRole: UserRole;
+  category: 'Account & Verification' | 'Payment Scam / Fraud Report' | 'Bug / Technical Issue' | 'Privacy / Data Request' | 'Appeal Decision' | 'General Help';
+  subject: string;
+  description: string;
+  status: 'Open' | 'Assigned' | 'In Review' | 'Escalated' | 'Resolved' | 'Closed';
+  assignedToRole?: AdminRoleType;
+  internalNotes?: string;
+  adminResponse?: string;
+  createdAt?: any;
+  updatedAt?: any;
+}
+
+export interface WorkHistoryRecord {
+  id: string;
+  userId: string;
+  roleTitle: string;
+  employerName: string;
+  location: string;
+  startDate: string;
+  endDate: string;
+  isCurrent: boolean;
+  workType: string;
+  responsibilities: string;
+  verificationStatus: 'Self-Reported' | 'Pending Verification' | 'Verified by Employer';
+  createdAt?: any;
+}
 
 export const APP_LOGO_URL = 'https://i.ibb.co/jv67DNGx/Jobsetulogo.png';
 

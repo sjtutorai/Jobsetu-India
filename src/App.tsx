@@ -4,8 +4,9 @@ import { JobProvider, useJobs } from './context/JobContext';
 import { AttendanceProvider } from './context/AttendanceContext';
 import { Navbar } from './components/Navbar';
 import { Hero } from './components/home/Hero';
-import { StatsSection, HowItWorksSection, SkillCategoriesShowcase } from './components/home/HomeSections';
+import { StatsSection, HowItWorksSection, SkillCategoriesShowcase, TrustAndFAQSection } from './components/home/HomeSections';
 import { Footer } from './components/Footer';
+import { OfflineIndicator } from './components/common/PWAInstallButton';
 import { AuthModal } from './components/auth/AuthModal';
 import { WorkerOnboarding } from './components/onboarding/WorkerOnboarding';
 import { EmployerOnboarding } from './components/onboarding/EmployerOnboarding';
@@ -318,7 +319,7 @@ function MainApp() {
 
       const path = window.location.pathname;
 
-      if (path === '/signin') {
+      if (path === '/signin' || path === '/login') {
         if (currentUser) {
           setAuthModalOpen(false);
           const role = userProfile?.activeRole || intendedRole || 'worker';
@@ -336,7 +337,7 @@ function MainApp() {
         return;
       }
 
-      if (path === '/signup') {
+      if (path === '/signup' || path === '/register') {
         if (currentUser) {
           setAuthModalOpen(false);
           const role = userProfile?.activeRole || intendedRole || 'worker';
@@ -370,7 +371,7 @@ function MainApp() {
         return;
       }
 
-      if (path === '/50km-radius') {
+      if (path === '/50km-radius' || path === '/jobs' || path === '/categories' || path === '/companies') {
         if (currentUser) {
           const role = userProfile?.activeRole || intendedRole || 'worker';
           navigateTo(
@@ -408,7 +409,12 @@ function MainApp() {
         return;
       }
 
-      if (path === '/jobfinder' || path.startsWith('/jobfinder/')) {
+      if (
+        path === '/jobfinder' ||
+        path.startsWith('/jobfinder/') ||
+        path === '/dashboard/seeker' ||
+        path.startsWith('/dashboard/seeker/')
+      ) {
         if (currentUser) {
           setAuthModalOpen(false);
           // Respect user's saved role if they haven't explicitly enabled worker role
@@ -428,7 +434,12 @@ function MainApp() {
           setAuthMode('signin');
           setAuthModalOpen(true);
         }
-      } else if (path === '/findemployee' || path.startsWith('/findemployee/')) {
+      } else if (
+        path === '/findemployee' ||
+        path.startsWith('/findemployee/') ||
+        path === '/dashboard/employer' ||
+        path.startsWith('/dashboard/employer/')
+      ) {
         if (currentUser) {
           setAuthModalOpen(false);
           if (userProfile && userProfile.activeRole === 'worker' && !userProfile.enabledRoles?.includes('employer')) {
@@ -447,7 +458,15 @@ function MainApp() {
           setAuthMode('signin');
           setAuthModalOpen(true);
         }
-      } else if (path === '/admin') {
+      } else if (path === '/support' || path === '/settings' || path.startsWith('/settings/')) {
+        if (currentUser) {
+          setView('dashboard');
+        } else {
+          setView('home');
+          setAuthMode('signin');
+          setAuthModalOpen(true);
+        }
+      } else if (path === '/admin' || path.startsWith('/admin/')) {
         setView('admin');
       } else if (path === '/' || path === '') {
         if (currentUser) {
@@ -591,6 +610,9 @@ function MainApp() {
 
   return (
     <div className="min-h-screen flex flex-col bg-[#F9FAFB] text-[#111827] relative">
+      {/* Offline Banner */}
+      <OfflineIndicator />
+
       {/* Desktop Cursor Spotlight & Custom Animated Cursor */}
       <GlobalCursorEffects />
 
@@ -667,6 +689,7 @@ function MainApp() {
                 <StatsSection />
                 <HowItWorksSection onSelectRole={handleSelectRoleFromHome} />
                 <SkillCategoriesShowcase />
+                <TrustAndFAQSection />
               </>
             )}
 

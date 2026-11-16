@@ -23,8 +23,11 @@ import {
   IdentityVerificationRecord,
   VerifiedDocumentRecord,
   RatingAppealRecord,
-  VerificationAuditLog
+  VerificationAuditLog,
+  AdminRoleType,
+  SupportTicket
 } from '../../types';
+import { MASTER_JOB_CATEGORIES } from '../../lib/taxonomyData';
 import {
   Shield,
   ShieldCheck,
@@ -48,14 +51,24 @@ import {
   Fingerprint,
   FileBadge,
   Scale,
-  History
+  History,
+  Layers,
+  LifeBuoy
 } from 'lucide-react';
 
 interface AdminDashboardProps {
   onBackToApp: () => void;
 }
 
-type AdminTab = 'overview' | 'verifications' | 'trust_governance' | 'reports' | 'users' | 'jobs';
+type AdminTab =
+  | 'overview'
+  | 'verifications'
+  | 'trust_governance'
+  | 'reports'
+  | 'support_tickets'
+  | 'categories'
+  | 'users'
+  | 'jobs';
 
 export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBackToApp }) => {
   const { currentUser, userProfile } = useAuth();
@@ -71,6 +84,9 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBackToApp }) =
   const [documentsList, setDocumentsList] = useState<VerifiedDocumentRecord[]>([]);
   const [appealsList, setAppealsList] = useState<RatingAppealRecord[]>([]);
   const [auditLogsList, setAuditLogsList] = useState<VerificationAuditLog[]>([]);
+  const [supportTicketsList, setSupportTicketsList] = useState<SupportTicket[]>([]);
+  const [activeAdminRole, setActiveAdminRole] = useState<AdminRoleType>('Super Admin');
+  const [disabledCategories, setDisabledCategories] = useState<string[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [actionLoading, setActionLoading] = useState<string | null>(null);
 
@@ -142,6 +158,14 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBackToApp }) =
         const lList: VerificationAuditLog[] = [];
         logSnap.forEach((d) => lList.push({ id: d.id, ...(d.data() as any) }));
         setAuditLogsList(lList);
+      }
+
+      // Fetch Support Tickets
+      const supSnap = await getDocs(collection(db, 'supportTickets')).catch(() => null);
+      if (supSnap) {
+        const sList: SupportTicket[] = [];
+        supSnap.forEach((d) => sList.push({ id: d.id, ...(d.data() as any) }));
+        setSupportTicketsList(sList);
       }
     } catch (e) {
       console.warn('Admin fetch notice:', e);
@@ -266,6 +290,29 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBackToApp }) =
     }
   };
 
+  // Resolve Support Ticket
+  const handleResolveSupportTicket = async (
+    ticketId: string,
+    status: SupportTicket['status'],
+    adminReply: string
+  ) => {
+    try {
+      setActionLoading(ticketId);
+      await updateDoc(doc(db, 'supportTickets', ticketId), {
+        status,
+        adminResponse: adminReply,
+        updatedAt: serverTimestamp()
+      });
+      setSupportTicketsList((prev) =>
+        prev.map((t) => (t.id === ticketId ? { ...t, status, adminResponse: adminReply } : t))
+      );
+    } catch (err) {
+      console.error('Failed to update support ticket:', err);
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
   // Metrics
   const totalUsers = Math.max(usersList.length, 1);
   const totalWorkers = workerProfilesList.length;
@@ -294,6 +341,18 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBackToApp }) =
           </div>
 
           <div className="flex items-center gap-3">
+            <select
+              value={activeAdminRole}
+              onChange={(e) => setActiveAdminRole(e.target.value as AdminRoleType)}
+              aria-label="Admin Role Perspective"
+              className="px-3 py-1.5 rounded-xl bg-slate-900 border border-slate-700 text-xs font-bold text-amber-400 focus:outline-none cursor-pointer"
+            >
+              <option value="Super Admin">Role: Super Admin</option>
+              <option value="Verification Admin">Role: Verification Admin</option>
+              <option value="Job Moderator">Role: Job Moderator</option>
+              <option value="Support Admin">Role: Support Admin</option>
+              <option value="Analytics Admin">Role: Analytics Admin</option>
+            </select>
             <button
               onClick={fetchData}
               disabled={loading}
@@ -375,6 +434,33 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBackToApp }) =
                 {pendingReports.length}
               </span>
             )}
+          </button>
+          <button
+            onClick={() => setActiveTab('support_tickets')}
+            className={`px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-2 ${
+              activeTab === 'support_tickets'
+                ? 'bg-amber-500 text-slate-950 shadow-sm font-extrabold'
+                : 'text-slate-400 hover:text-white hover:bg-slate-800'
+            }`}
+          >
+            <LifeBuoy className="w-4 h-4" />
+            <span>Support Tickets</span>
+            {supportTicketsList.filter((t) => t.status === 'Open').length > 0 && (
+              <span className="px-1.5 py-0.2 rounded-full text-[10px] bg-blue-500 text-white font-black">
+                {supportTicketsList.filter((t) => t.status === 'Open').length}
+              </span>
+            )}
+          </button>
+          <button
+            onClick={() => setActiveTab('categories')}
+            className={`px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-2 ${
+              activeTab === 'categories'
+                ? 'bg-amber-500 text-slate-950 shadow-sm font-extrabold'
+                : 'text-slate-400 hover:text-white hover:bg-slate-800'
+            }`}
+          >
+            <Layers className="w-4 h-4" />
+            <span>Categories (A–W)</span>
           </button>
           <button
             onClick={() => setActiveTab('users')}
@@ -900,6 +986,155 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBackToApp }) =
                   <p className="p-6 text-center text-xs text-slate-500">No verification audit logs recorded yet.</p>
                 )}
               </div>
+            </div>
+          </div>
+        )}
+
+        {/* TAB: SUPPORT TICKETS QUEUE */}
+        {activeTab === 'support_tickets' && (
+          <div className="space-y-4 animate-in fade-in">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+              <div>
+                <h2 className="text-lg font-bold text-white">Support Tickets & Fraud Escalations</h2>
+                <p className="text-xs text-slate-400">
+                  Policy Notice: Admins cannot read private messages or private resumes unless escalated in a report and logged in auditLogs.
+                </p>
+              </div>
+              <span className="text-xs font-bold text-amber-400">
+                {supportTicketsList.length} Total Tickets
+              </span>
+            </div>
+            <div className="bg-slate-950 rounded-3xl border border-slate-800 overflow-hidden divide-y divide-slate-800">
+              {supportTicketsList.map((ticket) => (
+                <div key={ticket.id} className="p-5 flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+                  <div className="space-y-1.5">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span className="px-2 py-0.5 rounded bg-slate-800 text-amber-400 font-mono text-[10px] font-bold">
+                        {ticket.referenceId}
+                      </span>
+                      <span className="text-sm font-bold text-white">{ticket.subject}</span>
+                      <span className="px-2 py-0.5 rounded text-[10px] font-bold uppercase bg-blue-500/20 text-blue-300">
+                        {ticket.category}
+                      </span>
+                      <span
+                        className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase ${
+                          ticket.status === 'Resolved'
+                            ? 'bg-emerald-500/20 text-emerald-400'
+                            : 'bg-amber-500/20 text-amber-400'
+                        }`}
+                      >
+                        {ticket.status}
+                      </span>
+                    </div>
+                    <p className="text-xs text-slate-300">{ticket.description}</p>
+                    <p className="text-[11px] text-slate-500">
+                      Submitted by: {ticket.userName} ({ticket.userEmail || ticket.userRole})
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-2 shrink-0">
+                    <button
+                      onClick={() =>
+                        handleResolveSupportTicket(
+                          ticket.id,
+                          'In Review',
+                          'Assigned to JOBSETU Trust & Safety specialist for investigation.'
+                        )
+                      }
+                      disabled={actionLoading === ticket.id}
+                      className="px-3 py-1.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold cursor-pointer"
+                    >
+                      Mark In Review
+                    </button>
+                    <button
+                      onClick={() =>
+                        handleResolveSupportTicket(
+                          ticket.id,
+                          'Resolved',
+                          'Resolved by JOBSETU Support & Compliance Team. Thank you for helping keep India’s job marketplace safe.'
+                        )
+                      }
+                      disabled={actionLoading === ticket.id}
+                      className="px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold cursor-pointer"
+                    >
+                      Resolve Ticket
+                    </button>
+                  </div>
+                </div>
+              ))}
+              {supportTicketsList.length === 0 && (
+                <p className="p-8 text-center text-xs text-slate-500">No support tickets in queue.</p>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* TAB: MASTER JOB CATEGORIES (A–W) */}
+        {activeTab === 'categories' && (
+          <div className="space-y-4 animate-in fade-in">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+              <div>
+                <h2 className="text-lg font-bold text-white">
+                  All-India Job Category Taxonomy (Groups A through W)
+                </h2>
+                <p className="text-xs text-slate-400">
+                  23 hierarchical occupational groups covering blue-collar, grey-collar, white-collar, healthcare, government-adjacent, and emerging roles.
+                </p>
+              </div>
+              <span className="px-3 py-1 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-xs font-bold">
+                {MASTER_JOB_CATEGORIES.length} Active Groups
+              </span>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {MASTER_JOB_CATEGORIES.map((cat) => {
+                const isDisabled = disabledCategories.includes(cat.id);
+                return (
+                  <div
+                    key={cat.id}
+                    className="p-5 rounded-3xl bg-slate-950 border border-slate-800 flex flex-col justify-between gap-4"
+                  >
+                    <div>
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="px-2.5 py-0.5 rounded-lg bg-amber-500/15 text-amber-400 font-black text-xs">
+                          Group {cat.code}
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setDisabledCategories((prev) =>
+                              prev.includes(cat.id)
+                                ? prev.filter((id) => id !== cat.id)
+                                : [...prev, cat.id]
+                            )
+                          }
+                          className={`px-2.5 py-1 rounded-lg text-[10px] font-bold uppercase cursor-pointer ${
+                            isDisabled
+                              ? 'bg-red-500/20 text-red-400'
+                              : 'bg-emerald-500/20 text-emerald-400'
+                          }`}
+                        >
+                          {isDisabled ? 'Disabled' : 'Active'}
+                        </button>
+                      </div>
+                      <h3 className="text-sm font-bold text-white mt-2">{cat.name}</h3>
+                      <div className="flex flex-wrap gap-1.5 mt-3">
+                        {cat.subcategories.map((sub) => (
+                          <span
+                            key={sub}
+                            className="px-2 py-0.5 rounded-md bg-slate-900 border border-slate-800 text-[11px] text-slate-300"
+                          >
+                            {sub}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                    <div className="pt-3 border-t border-slate-900 flex items-center justify-between text-[11px] text-slate-500">
+                      <span>Allowed Types: {cat.allowedJobTypes.join(', ')}</span>
+                      <span>{cat.skillTags.length} Skill Tags</span>
+                    </div>
+                  </div>
+                );
+              })}
             </div>
           </div>
         )}

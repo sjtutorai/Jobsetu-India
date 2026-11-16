@@ -16,9 +16,14 @@ async function startServer() {
   setupGeminiRoutes(app);
   setupRecaptchaRoutes(app);
 
+  // Google Search Console site verification endpoint
+  app.get('/googlee648bd7d4ad0dfeb.html', (_req, res) => {
+    res.type('text/html').send('google-site-verification: googlee648bd7d4ad0dfeb.html');
+  });
+
   // Health check endpoint
   app.get('/api/health', (_req, res) => {
-    res.json({ status: 'ok', platform: 'JOBSETU' });
+    res.json({ status: 'ok', platform: 'Jobsetu India' });
   });
 
   // Setup Vite middlewares for SSR/dev SPA serving

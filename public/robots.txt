@@ -1,0 +1,19 @@
+User-agent: *
+Allow: /
+Allow: /jobs
+Allow: /categories
+Allow: /companies
+Allow: /about
+Allow: /contact
+Allow: /help
+Allow: /terms
+Allow: /privacy
+Disallow: /dashboard/
+Disallow: /jobfinder/
+Disallow: /findemployee/
+Disallow: /admin
+Disallow: /messages
+Disallow: /notifications
+Disallow: /settings
+
+Sitemap: https://ais-pre-orclahsx5mqxtwxiqbtjqn-157133176008.asia-east1.run.app/sitemap.xml

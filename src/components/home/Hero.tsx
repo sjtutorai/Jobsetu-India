@@ -1,7 +1,8 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { RoleCards } from './RoleCards';
 import { UserRole } from '../../types';
-import { ShieldCheck, MapPin, Zap, Navigation } from 'lucide-react';
+import { MASTER_JOB_CATEGORIES } from '../../lib/taxonomyData';
+import { ShieldCheck, MapPin, Zap, Navigation, Search, Briefcase } from 'lucide-react';
 import {
   HeroAmbientBackdrop,
   SplitTextReveal,
@@ -25,6 +26,31 @@ interface HeroProps {
 }
 
 export const Hero: React.FC<HeroProps> = ({ onSelectRole, onOpen50KmRadius }) => {
+  const [searchSkill, setSearchSkill] = useState('');
+  const [searchCategory, setSearchCategory] = useState('');
+  const [searchLocation, setSearchLocation] = useState('');
+
+  const handleHeroSearch = (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
+      const params = new URLSearchParams();
+      if (searchSkill.trim()) params.set('q', searchSkill.trim());
+      if (searchCategory) params.set('category', searchCategory);
+      if (searchLocation.trim()) params.set('loc', searchLocation.trim());
+      const queryStr = params.toString();
+      if (queryStr) {
+        window.history.pushState(null, '', `/50km-radius?${queryStr}`);
+      }
+    } catch {
+      // ignore
+    }
+    if (onOpen50KmRadius) {
+      onOpen50KmRadius();
+    } else {
+      onSelectRole('worker');
+    }
+  };
+
   return (
     <section className="relative overflow-hidden pt-12 pb-20 lg:pt-20 lg:pb-28 bg-gradient-to-b from-blue-50/60 via-white to-gray-50/50 jobsetu-animated-gradient">
       {/* Ambient Aurora, Moving Grid, Particles, Gradient Orbs, Blobs, Geometric Shapes & Shooting Stars */}
@@ -65,6 +91,60 @@ export const Hero: React.FC<HeroProps> = ({ onSelectRole, onOpen50KmRadius }) =>
             delay={0.48}
           />
         </p>
+
+        {/* Functional All-India Job Search Bar (Section 13 of Master Specification) */}
+        <form
+          onSubmit={handleHeroSearch}
+          className="w-full max-w-4xl mb-8 p-2.5 rounded-2xl bg-white/95 backdrop-blur-md border border-slate-200 shadow-lg shadow-blue-900/5 grid grid-cols-1 md:grid-cols-12 gap-2 text-left"
+        >
+          <div className="md:col-span-4 flex items-center gap-2.5 px-3.5 py-2.5 rounded-xl bg-slate-50 border border-slate-200/80">
+            <Search className="w-4 h-4 text-[#267BE8] shrink-0" />
+            <input
+              type="text"
+              value={searchSkill}
+              onChange={(e) => setSearchSkill(e.target.value)}
+              placeholder="Job title, skill, or trade (e.g., Electrician, Driver)"
+              aria-label="Job title or skill"
+              className="w-full bg-transparent text-xs font-semibold text-slate-900 placeholder:text-slate-400 focus:outline-none"
+            />
+          </div>
+          <div className="md:col-span-3 flex items-center gap-2 px-3 py-2.5 rounded-xl bg-slate-50 border border-slate-200/80">
+            <Briefcase className="w-4 h-4 text-amber-500 shrink-0" />
+            <select
+              value={searchCategory}
+              onChange={(e) => setSearchCategory(e.target.value)}
+              aria-label="Job category"
+              className="w-full bg-transparent text-xs font-semibold text-slate-800 focus:outline-none cursor-pointer"
+            >
+              <option value="">All 23 Categories (A–W)</option>
+              {MASTER_JOB_CATEGORIES.map((cat) => (
+                <option key={cat.id} value={cat.name}>
+                  {cat.code}. {cat.name}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div className="md:col-span-3 flex items-center gap-2 px-3.5 py-2.5 rounded-xl bg-slate-50 border border-slate-200/80">
+            <MapPin className="w-4 h-4 text-emerald-600 shrink-0" />
+            <input
+              type="text"
+              value={searchLocation}
+              onChange={(e) => setSearchLocation(e.target.value)}
+              placeholder="City, District, PIN or Near Me"
+              aria-label="City, District, or PIN code"
+              className="w-full bg-transparent text-xs font-semibold text-slate-900 placeholder:text-slate-400 focus:outline-none"
+            />
+          </div>
+          <div className="md:col-span-2">
+            <button
+              type="submit"
+              className="w-full h-full min-h-[42px] px-4 py-2.5 rounded-xl bg-[#2563EB] hover:bg-blue-700 text-white font-extrabold text-xs shadow-sm transition-colors cursor-pointer flex items-center justify-center gap-1.5"
+            >
+              <Search className="w-3.5 h-3.5" />
+              <span>Search Jobs</span>
+            </button>
+          </div>
+        </form>
 
         {/* Prominent 50 KM Radius Quick Action Button */}
         {onOpen50KmRadius && (

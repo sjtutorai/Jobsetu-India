@@ -1,5 +1,6 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { SKILL_CATEGORIES_DATA } from '../../types';
+import { ShieldCheck, AlertTriangle, ChevronDown, Lock, FileCheck2 } from 'lucide-react';
 import {
   ScrollTriggeredZoom,
   StaggeredCardContainer,
@@ -43,12 +44,12 @@ export const StatsSection: React.FC = () => {
             <StaggeredCardItem>
               <HoverSpotlightCard spotlightColor="rgba(245, 158, 11, 0.1)" className="p-4 rounded-2xl">
                 <p className="text-3xl sm:text-4xl font-extrabold text-[#F59E0B] tracking-tight">
-                  <NumberCounter value={8} suffix="+" />
+                  <NumberCounter value={23} />
                 </p>
-                <p className="text-xs sm:text-sm font-semibold text-gray-800 mt-1">Vocational Sectors</p>
-                <p className="text-[11px] text-gray-500 mt-0.5">From Retail to Technical & Digital</p>
+                <p className="text-xs sm:text-sm font-semibold text-gray-800 mt-1">Occupational Sectors (A–W)</p>
+                <p className="text-[11px] text-gray-500 mt-0.5">From Construction to IT, Healthcare & Retail</p>
                 <div className="mt-3 max-w-[110px] mx-auto">
-                  <AnimatedProgressBar percent={85} trackClassName="w-full bg-amber-100 h-1 rounded-full overflow-hidden" barClassName="bg-[#F59E0B] h-full rounded-full" />
+                  <AnimatedProgressBar percent={100} trackClassName="w-full bg-amber-100 h-1 rounded-full overflow-hidden" barClassName="bg-[#F59E0B] h-full rounded-full" />
                 </div>
               </HoverSpotlightCard>
             </StaggeredCardItem>
@@ -306,6 +307,117 @@ export const SkillCategoriesShowcase: React.FC = () => {
           </StaggeredCardContainer>
         </div>
       </SectionMorphTransition>
+    </section>
+  );
+};
+
+const FAQ_ITEMS = [
+  {
+    q: 'Is Jobsetu India completely free for job seekers and workers?',
+    a: 'Yes. Applying for jobs, creating a Resume or WorkPass profile, and receiving direct employer hiring requests on Jobsetu India is 100% free. Never pay any registration, interview, or placement fee to anyone.'
+  },
+  {
+    q: 'Can I use both Job Seeker and Employer modes with one account?',
+    a: 'Yes. Jobsetu India supports a unified account model where you can switch seamlessly between Job Seeker Mode (finding jobs) and Employer Mode (hiring workers and staff) from your navigation header or sidebar.'
+  },
+  {
+    q: 'How does Jobsetu India protect my phone number, email, and resume?',
+    a: 'Your contact details and uploaded resume are protected by strict consent-based privacy rules. Public visitors only see your general city/state and skill summary until you apply to a job or explicitly grant access.'
+  },
+  {
+    q: 'How does the 50 KM Radius hyperlocal job and worker radar work?',
+    a: 'You can use live GPS or select any Indian state, district, city, or PIN code on the interactive map to filter verified jobs and available workers within 5, 10, 25, 50, or 100 kilometres.'
+  }
+];
+
+export const TrustAndFAQSection: React.FC = () => {
+  const [openIndex, setOpenIndex] = useState<number | null>(0);
+
+  return (
+    <section className="py-16 bg-slate-50 border-t border-gray-200/80">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-14">
+        {/* Trust & Zero-Fee Safety Guarantee */}
+        <div className="bg-white rounded-3xl border border-slate-200 p-6 sm:p-8 shadow-xs grid grid-cols-1 lg:grid-cols-3 gap-6">
+          <div className="flex items-start gap-3.5">
+            <div className="w-10 h-10 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center shrink-0">
+              <ShieldCheck className="w-5 h-5" />
+            </div>
+            <div>
+              <h3 className="text-sm font-extrabold text-gray-900">Employer Verification & Badges</h3>
+              <p className="text-xs text-gray-600 mt-1 leading-relaxed">
+                Businesses undergo GSTIN, MSME/Udyam, or Shop Act verification before receiving the Verified Employer badge.
+              </p>
+            </div>
+          </div>
+
+          <div className="flex items-start gap-3.5">
+            <div className="w-10 h-10 rounded-xl bg-blue-50 text-[#2563EB] flex items-center justify-center shrink-0">
+              <Lock className="w-5 h-5" />
+            </div>
+            <div>
+              <h3 className="text-sm font-extrabold text-gray-900">Consent-Based Contact & WorkPass</h3>
+              <p className="text-xs text-gray-600 mt-1 leading-relaxed">
+                Your phone number, email, and private resume stay masked until you apply or approve an employer inquiry.
+              </p>
+            </div>
+          </div>
+
+          <div className="flex items-start gap-3.5">
+            <div className="w-10 h-10 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center shrink-0">
+              <AlertTriangle className="w-5 h-5" />
+            </div>
+            <div>
+              <h3 className="text-sm font-extrabold text-gray-900">Zero Recruitment Fee Policy</h3>
+              <p className="text-xs text-gray-600 mt-1 leading-relaxed">
+                Demanding money from candidates for job placement is strictly prohibited and can be reported in 1 click.
+              </p>
+            </div>
+          </div>
+        </div>
+
+        {/* Accessible FAQ Accordion */}
+        <div className="max-w-3xl mx-auto">
+          <div className="text-center mb-8">
+            <span className="text-xs font-bold uppercase tracking-wider text-[#2563EB] bg-blue-50 px-3 py-1 rounded-full border border-blue-200">
+              Frequently Asked Questions
+            </span>
+            <h2 className="text-2xl sm:text-3xl font-extrabold text-gray-900 mt-2">
+              Everything You Need to Know About Jobsetu India
+            </h2>
+          </div>
+
+          <div className="space-y-3">
+            {FAQ_ITEMS.map((item, idx) => {
+              const isOpen = openIndex === idx;
+              return (
+                <div
+                  key={item.q}
+                  className="bg-white rounded-2xl border border-slate-200 overflow-hidden transition-colors"
+                >
+                  <button
+                    type="button"
+                    aria-expanded={isOpen}
+                    onClick={() => setOpenIndex(isOpen ? null : idx)}
+                    className="w-full px-5 py-4 text-left flex items-center justify-between gap-4 cursor-pointer hover:bg-slate-50/70 transition-colors"
+                  >
+                    <span className="text-sm font-bold text-gray-900">{item.q}</span>
+                    <ChevronDown
+                      className={`w-4 h-4 text-gray-500 shrink-0 transition-transform ${
+                        isOpen ? 'rotate-180 text-[#2563EB]' : ''
+                      }`}
+                    />
+                  </button>
+                  {isOpen && (
+                    <div className="px-5 pb-4 text-xs text-gray-600 leading-relaxed border-t border-slate-100 pt-3">
+                      {item.a}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      </div>
     </section>
   );
 };

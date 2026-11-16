@@ -17,6 +17,7 @@ import {
 import { UserRole } from '../types';
 import { motion, AnimatePresence } from 'motion/react';
 import { AnimatedImage, MagneticButton, RippleContainer, RippleRadarPulse } from './animations';
+import { PWAInstallButton } from './common/PWAInstallButton';
 
 interface NavbarProps {
   onOpenAuth: (role?: UserRole, mode?: 'signin' | 'signup') => void;
@@ -90,7 +91,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                 </span>
               </div>
               <span className="text-[11px] font-medium text-[#6B7280] hidden sm:block">
-                Connecting People. Creating Opportunities.
+                Connecting India. Creating Opportunities.
               </span>
             </div>
           </div>
@@ -136,7 +137,8 @@ export const Navbar: React.FC<NavbarProps> = ({
           </nav>
 
           {/* User Auth / Profile Actions */}
-          <div className="hidden md:flex items-center gap-4">
+          <div className="hidden md:flex items-center gap-3">
+            <PWAInstallButton compact />
             {currentUser && userProfile ? (
               <div className="relative">
                 <div className="flex items-center gap-3">
@@ -342,6 +344,7 @@ export const Navbar: React.FC<NavbarProps> = ({
 
           {/* Mobile Menu Button */}
           <div className="flex md:hidden items-center gap-2">
+            <PWAInstallButton compact />
             <button
               onClick={onOpen50KmRadius}
               className="px-2.5 py-1.5 text-xs font-bold rounded-lg bg-emerald-50 text-emerald-700 border border-emerald-200 flex items-center gap-1"

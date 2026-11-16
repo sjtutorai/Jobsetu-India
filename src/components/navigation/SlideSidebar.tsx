@@ -88,33 +88,83 @@ export const SlideSidebar: React.FC<SlideSidebarProps> = ({
   const accentColor = isWorker ? '#2563EB' : '#D97706';
   const accentBg = isWorker ? 'bg-blue-600' : 'bg-amber-600';
   const activeBg = isWorker ? 'bg-blue-50 text-blue-700 font-bold' : 'bg-amber-50 text-amber-800 font-bold';
-  const activeBorder = isWorker ? 'border-l-4 border-blue-600' : 'border-l-4 border-amber-600';
+  const activeBorder = isWorker ? 'border border-blue-200 dark:border-blue-800' : 'border border-amber-200 dark:border-amber-800';
 
   // Navigation Items for Job Finder (Worker)
   const workerItems: SidebarItem[] = [
     {
       id: 'overview',
-      label: 'Dashboard',
-      subtext: 'Overview & Contacts',
+      label: 'Overview',
+      subtext: 'Dashboard & Alerts',
       icon: TrendingUp,
       badge: contactedCount > 0 ? `${contactedCount} Inquiries` : undefined,
       badgeColor: 'bg-emerald-100 text-emerald-800'
     },
     {
+      id: 'find_jobs',
+      label: 'Find Jobs',
+      subtext: 'All-India Search (A–W)',
+      icon: Briefcase,
+      badge: 'All',
+      badgeColor: 'bg-blue-100 text-blue-800'
+    },
+    {
       id: 'jobs_near_me',
-      label: '50 KM Radius (Jobs)',
-      subtext: '5 KM - 50 KM Radar & Map',
+      label: 'Nearby Jobs',
+      subtext: '5 KM – 100 KM Radar',
       icon: Search,
       badge: '50 KM',
       badgeColor: 'bg-blue-600 text-white'
     },
     {
-      id: 'find_jobs',
-      label: 'Find Jobs',
-      subtext: 'Category & Search',
-      icon: Briefcase,
-      badge: profileCompletion < 100 ? 'Lock Tier' : 'All',
-      badgeColor: profileCompletion < 100 ? 'bg-amber-100 text-amber-800' : 'bg-blue-100 text-blue-800'
+      id: 'my_applications',
+      label: 'Applications',
+      subtext: 'Track Status & Timeline',
+      icon: FileCheck2,
+      badge: applicationsCount > 0 ? applicationsCount : undefined,
+      badgeColor: 'bg-blue-100 text-blue-800'
+    },
+    {
+      id: 'saved_jobs',
+      label: 'Saved Jobs',
+      subtext: 'Bookmarked Roles',
+      icon: Bookmark,
+      badge: savedCount > 0 ? savedCount : undefined,
+      badgeColor: 'bg-slate-100 text-slate-700'
+    },
+    {
+      id: 'hiring_requests',
+      label: 'Hiring Offers',
+      subtext: 'Direct Employer Invites',
+      icon: Send
+    },
+    {
+      id: 'messages',
+      label: 'Messages',
+      subtext: 'Permitted Conversations',
+      icon: MessageSquare,
+      badge: unreadMessagesCount > 0 ? unreadMessagesCount : undefined,
+      badgeColor: 'bg-blue-600 text-white'
+    },
+    {
+      id: 'notifications',
+      label: 'Notifications',
+      subtext: 'Alerts & Updates',
+      icon: Bell,
+      badge: unreadNotificationsCount > 0 ? unreadNotificationsCount : undefined,
+      badgeColor: 'bg-red-500 text-white'
+    },
+    {
+      id: 'profile',
+      label: 'My Profile',
+      subtext: 'Personal & Skills Editor',
+      icon: User
+    },
+    {
+      id: 'resume_workpass',
+      label: 'Resume & WorkPass',
+      subtext: 'CV Builder & Work History',
+      icon: ShieldCheck
     },
     {
       id: 'trust_centre',
@@ -137,54 +187,16 @@ export const SlideSidebar: React.FC<SlideSidebarProps> = ({
         ]
       : []),
     {
-      id: 'hiring_requests',
-      label: 'Hiring Offers',
-      subtext: 'Direct Employer Offers',
-      icon: Send
-    },
-    {
-      id: 'my_applications',
-      label: 'My Applications',
-      subtext: 'Track Progress',
-      icon: FileCheck2,
-      badge: applicationsCount > 0 ? applicationsCount : undefined,
-      badgeColor: 'bg-blue-100 text-blue-800'
-    },
-    {
-      id: 'saved_jobs',
-      label: 'Saved Jobs',
-      subtext: 'Bookmarked',
-      icon: Bookmark,
-      badge: savedCount > 0 ? savedCount : undefined,
-      badgeColor: 'bg-slate-100 text-slate-700'
-    },
-    {
-      id: 'messages',
-      label: 'Messages',
-      subtext: 'Employer Chat',
-      icon: MessageSquare,
-      badge: unreadMessagesCount > 0 ? unreadMessagesCount : undefined,
-      badgeColor: 'bg-blue-600 text-white'
-    },
-    {
-      id: 'profile',
-      label: 'Profile',
-      subtext: 'Account Details & CV',
-      icon: User
-    },
-    {
       id: 'settings',
       label: 'Settings',
-      subtext: 'Language & App Info',
+      subtext: 'Privacy, Security & Theme',
       icon: Settings
     },
     {
-      id: 'notifications',
-      label: 'Notifications',
-      subtext: 'Alerts & Updates',
-      icon: Bell,
-      badge: unreadNotificationsCount > 0 ? unreadNotificationsCount : undefined,
-      badgeColor: 'bg-red-500 text-white'
+      id: 'support',
+      label: 'Help & Support',
+      subtext: 'Tickets & Fraud Report',
+      icon: Lock
     }
   ];
 
@@ -301,6 +313,12 @@ export const SlideSidebar: React.FC<SlideSidebarProps> = ({
       icon: Bell,
       badge: unreadNotificationsCount > 0 ? unreadNotificationsCount : undefined,
       badgeColor: 'bg-red-500 text-white'
+    },
+    {
+      id: 'support',
+      label: 'Support & Escalations',
+      subtext: 'Tickets & Policy Help',
+      icon: Lock
     }
   ];
 

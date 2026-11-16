@@ -13,6 +13,8 @@ import { ResumeUploadModal } from '../common/ResumeUploadModal';
 import { ChangeLocationModal } from '../common/ChangeLocationModal';
 import { SlideSidebar } from '../navigation/SlideSidebar';
 import { SettingsView } from '../common/SettingsView';
+import { ResumeWorkPassCenter } from '../common/ResumeWorkPassCenter';
+import { SupportCenterView } from '../common/SupportCenterView';
 import {
   Job,
   UserRole,
@@ -86,6 +88,7 @@ export type WorkerTab =
   | 'overview'
   | 'jobs_near_me'
   | 'find_jobs'
+  | 'resume_workpass'
   | 'trust_centre'
   | 'attendance'
   | 'hiring_requests'
@@ -94,12 +97,14 @@ export type WorkerTab =
   | 'messages'
   | 'profile'
   | 'notifications'
+  | 'support'
   | 'settings';
 
 const WORKER_TAB_TO_SLUG: Record<WorkerTab, string> = {
   overview: '/jobfinder',
   jobs_near_me: '/jobfinder/50km-radius',
   find_jobs: '/jobfinder/find-jobs',
+  resume_workpass: '/jobfinder/workpass',
   trust_centre: '/jobfinder/trust-centre',
   attendance: '/jobfinder/attendance',
   hiring_requests: '/jobfinder/hiring-requests',
@@ -108,6 +113,7 @@ const WORKER_TAB_TO_SLUG: Record<WorkerTab, string> = {
   messages: '/jobfinder/messages',
   profile: '/jobfinder/profile',
   notifications: '/jobfinder/notifications',
+  support: '/jobfinder/support',
   settings: '/jobfinder/settings'
 };
 
@@ -116,16 +122,24 @@ const parseWorkerTabFromPath = (pathname: string): WorkerTab => {
   if (clean === '/50km-radius' || clean === '/jobfinder/50km-radius' || clean === '/jobfinder/jobs-near-me') {
     return 'jobs_near_me';
   }
-  if (clean === '/jobfinder/find-jobs') return 'find_jobs';
+  if (clean === '/jobfinder/find-jobs' || clean === '/jobs') return 'find_jobs';
+  if (
+    clean === '/jobfinder/workpass' ||
+    clean === '/dashboard/seeker/resume' ||
+    clean === '/dashboard/seeker/workpass'
+  ) {
+    return 'resume_workpass';
+  }
   if (clean === '/jobfinder/trust-centre') return 'trust_centre';
   if (clean === '/jobfinder/attendance') return 'attendance';
   if (clean === '/jobfinder/hiring-requests') return 'hiring_requests';
-  if (clean === '/jobfinder/my-applications') return 'my_applications';
-  if (clean === '/jobfinder/saved-jobs') return 'saved_jobs';
-  if (clean === '/jobfinder/messages') return 'messages';
-  if (clean === '/jobfinder/profile') return 'profile';
-  if (clean === '/jobfinder/notifications') return 'notifications';
-  if (clean === '/jobfinder/settings') return 'settings';
+  if (clean === '/jobfinder/my-applications' || clean === '/dashboard/seeker/applications') return 'my_applications';
+  if (clean === '/jobfinder/saved-jobs' || clean === '/dashboard/seeker/saved') return 'saved_jobs';
+  if (clean === '/jobfinder/messages' || clean === '/dashboard/seeker/messages') return 'messages';
+  if (clean === '/jobfinder/profile' || clean === '/dashboard/seeker/profile') return 'profile';
+  if (clean === '/jobfinder/notifications' || clean === '/dashboard/seeker/notifications') return 'notifications';
+  if (clean === '/jobfinder/support' || clean === '/support') return 'support';
+  if (clean === '/jobfinder/settings' || clean === '/settings') return 'settings';
   return 'overview';
 };
 
@@ -444,6 +458,7 @@ export const WorkerDashboard: React.FC<WorkerDashboardProps> = ({
                   {activeTab === 'overview' && 'Job Finder Dashboard'}
                   {activeTab === 'jobs_near_me' && 'Jobs Near Me (5 KM - 50 KM Radar & Map)'}
                   {activeTab === 'find_jobs' && 'Find Jobs (Category & Discovery)'}
+                  {activeTab === 'resume_workpass' && 'Resume Builder, WorkPass & Profile Preview'}
                   {activeTab === 'trust_centre' && 'JOBSETU Trust & Verification Centre'}
                   {activeTab === 'attendance' && 'My Attendance & Shifts (GPS / QR Punch)'}
                   {activeTab === 'hiring_requests' && 'Direct Employer Hiring Offers'}
@@ -451,6 +466,7 @@ export const WorkerDashboard: React.FC<WorkerDashboardProps> = ({
                   {activeTab === 'saved_jobs' && 'Saved Jobs'}
                   {activeTab === 'messages' && 'Employer Messages & Inquiries'}
                   {activeTab === 'profile' && 'My Profile & Account Details'}
+                  {activeTab === 'support' && 'Help, Support & Scam Reporting'}
                   {activeTab === 'settings' && 'Platform Settings'}
                   {activeTab === 'notifications' && 'Notifications'}
                 </h1>
@@ -1556,6 +1572,20 @@ export const WorkerDashboard: React.FC<WorkerDashboardProps> = ({
                 else if (view === 'jobs') setActiveTab('find_jobs');
               }}
             />
+          </div>
+        )}
+
+        {/* TAB: RESUME BUILDER & WORKPASS */}
+        {activeTab === 'resume_workpass' && (
+          <div className="animate-in fade-in">
+            <ResumeWorkPassCenter onOpenResumeUploadModal={() => setResumeModalOpen(true)} />
+          </div>
+        )}
+
+        {/* TAB: HELP & SUPPORT */}
+        {activeTab === 'support' && (
+          <div className="animate-in fade-in">
+            <SupportCenterView />
           </div>
         )}
 

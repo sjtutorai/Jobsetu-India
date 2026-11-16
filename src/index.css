@@ -1,14 +1,46 @@
 @import "tailwindcss";
+@custom-variant dark (&:where(.dark, .dark *));
 @import "leaflet/dist/leaflet.css";
 
 @layer base {
+  :root {
+    --brand-navy: #10213B;
+    --brand-blue: #267BE8;
+    --brand-cyan: #36C5F0;
+    --brand-bg: #F5F7FB;
+  }
+
   body {
     font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
     color: #111827;
-    background-color: #F9FAFB;
+    background-color: #F5F7FB;
     -webkit-font-smoothing: antialiased;
     overflow-x: hidden;
   }
+
+  html.dark body {
+    color: #F8FAFC;
+    background-color: #0F172A;
+  }
+
+  html[data-font-scale="large"] {
+    font-size: 17px;
+  }
+  html[data-font-scale="compact"] {
+    font-size: 14.5px;
+  }
+  html[data-high-contrast="true"] body {
+    contrast: 1.12;
+  }
+}
+
+html.reduce-motion *,
+html.reduce-motion *::before,
+html.reduce-motion *::after {
+  animation-duration: 0.01ms !important;
+  animation-iteration-count: 1 !important;
+  transition-duration: 0.01ms !important;
+  scroll-behavior: auto !important;
 }
 
 /* Custom scrollbars */
