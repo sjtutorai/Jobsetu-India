@@ -606,21 +606,23 @@ export const WorkerDashboard: React.FC<WorkerDashboardProps> = ({
                 </div>
               </div>
 
-              {/* Profile Completion Bar inside banner */}
-              <div className="relative mt-8 pt-6 border-t border-white/15">
-                <div className="flex items-center justify-between text-xs font-bold text-white mb-2">
-                  <span className="flex items-center gap-1.5">
-                    <CheckCircle2 className="w-4 h-4 text-emerald-300" />
-                    Complete your 100% Profile to find the Best Jobs in India
-                  </span>
-                  <span>{profileCompletionPercent}% Completed</span>
+              {/* Profile Completion Bar inside banner (only shown when < 100%) */}
+              {profileCompletionPercent < 100 && (
+                <div className="relative mt-8 pt-6 border-t border-white/15">
+                  <div className="flex items-center justify-between text-xs font-bold text-white mb-2">
+                    <span className="flex items-center gap-1.5">
+                      <CheckCircle2 className="w-4 h-4 text-emerald-300" />
+                      Complete your 100% Profile to find the Best Jobs in India
+                    </span>
+                    <span>{profileCompletionPercent}% Completed</span>
+                  </div>
+                  <AnimatedProgressBar
+                    percent={profileCompletionPercent}
+                    trackClassName="w-full bg-white/20 h-2.5 rounded-full overflow-hidden"
+                    barClassName="bg-emerald-400 h-full rounded-full"
+                  />
                 </div>
-                <AnimatedProgressBar
-                  percent={profileCompletionPercent}
-                  trackClassName="w-full bg-white/20 h-2.5 rounded-full overflow-hidden"
-                  barClassName="bg-emerald-400 h-full rounded-full"
-                />
-              </div>
+              )}
             </div>
 
             {/* BASIC DETAILS & 100% PROFILE COMPLETION CARD */}

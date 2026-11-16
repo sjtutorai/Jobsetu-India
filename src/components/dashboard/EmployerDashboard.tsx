@@ -791,21 +791,23 @@ export const EmployerDashboard: React.FC<EmployerDashboardProps> = ({
                   </div>
                 </div>
 
-                {/* Profile Completion Bar inside banner */}
-                <div className="relative mt-8 pt-6 border-t border-white/20">
-                  <div className="flex items-center justify-between text-xs font-bold text-white mb-2">
-                    <span className="flex items-center gap-1.5">
-                      <CheckCircle2 className="w-4 h-4 text-emerald-200" />
-                      Employer Registration & Company Profile Progress
-                    </span>
-                    <span>{employerCompletionPercent}% Completed</span>
+                {/* Profile Completion Bar inside banner (only shown when < 100%) */}
+                {employerCompletionPercent < 100 && (
+                  <div className="relative mt-8 pt-6 border-t border-white/20">
+                    <div className="flex items-center justify-between text-xs font-bold text-white mb-2">
+                      <span className="flex items-center gap-1.5">
+                        <CheckCircle2 className="w-4 h-4 text-emerald-200" />
+                        Employer Registration & Company Profile Progress
+                      </span>
+                      <span>{employerCompletionPercent}% Completed</span>
+                    </div>
+                    <AnimatedProgressBar
+                      percent={employerCompletionPercent}
+                      trackClassName="w-full bg-white/20 h-2.5 rounded-full overflow-hidden"
+                      barClassName="bg-emerald-300 h-full rounded-full"
+                    />
                   </div>
-                  <AnimatedProgressBar
-                    percent={employerCompletionPercent}
-                    trackClassName="w-full bg-white/20 h-2.5 rounded-full overflow-hidden"
-                    barClassName="bg-emerald-300 h-full rounded-full"
-                  />
-                </div>
+                )}
               </div>
 
               {/* 10-MODULE ADVANCED EMPLOYER COMMAND SUITE */}

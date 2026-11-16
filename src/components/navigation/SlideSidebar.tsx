@@ -377,23 +377,15 @@ export const SlideSidebar: React.FC<SlideSidebarProps> = ({
         </button>
       </div>
 
-      {/* Profile Completion Unlock Gauge */}
-      {!isCollapsedDesktop && (
+      {/* Profile Completion Unlock Gauge (Removed once 100% saved) */}
+      {!isCollapsedDesktop && profileCompletion < 100 && (
         <div className="p-4 mx-3 my-3 rounded-2xl bg-gradient-to-br from-slate-50 to-blue-50/40 border border-slate-200/80">
           <div className="flex items-center justify-between text-xs mb-1.5">
             <span className="font-bold text-gray-800 flex items-center gap-1">
-              {profileCompletion === 100 ? (
-                <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
-              ) : (
-                <Lock className="w-3.5 h-3.5 text-amber-600" />
-              )}
+              <Lock className="w-3.5 h-3.5 text-amber-600" />
               <span>Profile Completion</span>
             </span>
-            <span
-              className={`font-black ${
-                profileCompletion === 100 ? 'text-emerald-700' : 'text-blue-700'
-              }`}
-            >
+            <span className="font-black text-blue-700">
               {profileCompletion}%
             </span>
           </div>
@@ -404,40 +396,29 @@ export const SlideSidebar: React.FC<SlideSidebarProps> = ({
               percent={Math.max(profileCompletion, 10)}
               trackClassName="w-full h-2 rounded-full bg-slate-200 overflow-hidden"
               barClassName={`h-full rounded-full ${
-                profileCompletion === 100
-                  ? 'bg-emerald-500'
-                  : isWorker
-                  ? 'bg-[#2563EB]'
-                  : 'bg-amber-500'
+                isWorker ? 'bg-[#2563EB]' : 'bg-amber-500'
               }`}
             />
           </div>
 
           <p className="text-[11px] text-gray-600 leading-snug">
-            {profileCompletion === 100 ? (
-              <span className="text-emerald-700 font-semibold flex items-center gap-1">
-                <CheckCircle2 className="w-3 h-3 shrink-0" />
-                <span>100% Complete: All 50km shops & jobs unlocked!</span>
-              </span>
-            ) : isWorker ? (
+            {isWorker ? (
               <span>Complete to 100% to unlock 3x more local shops & direct employer contact.</span>
             ) : (
               <span>Complete to 100% to unlock all verified candidate CVs within 50km.</span>
             )}
           </p>
 
-          {profileCompletion < 100 && (
-            <button
-              type="button"
-              onClick={onOpenProfile}
-              className={`mt-2 w-full py-1.5 px-2.5 rounded-xl text-[11px] font-bold text-white transition-all shadow-xs flex items-center justify-center gap-1 cursor-pointer ${
-                isWorker ? 'bg-[#2563EB] hover:bg-blue-700' : 'bg-amber-600 hover:bg-amber-700'
-              }`}
-            >
-              <span>Complete Profile (+{100 - profileCompletion}%)</span>
-              <ArrowRight className="w-3 h-3" />
-            </button>
-          )}
+          <button
+            type="button"
+            onClick={onOpenProfile}
+            className={`mt-2 w-full py-1.5 px-2.5 rounded-xl text-[11px] font-bold text-white transition-all shadow-xs flex items-center justify-center gap-1 cursor-pointer ${
+              isWorker ? 'bg-[#2563EB] hover:bg-blue-700' : 'bg-amber-600 hover:bg-amber-700'
+            }`}
+          >
+            <span>Complete Profile (+{100 - profileCompletion}%)</span>
+            <ArrowRight className="w-3 h-3" />
+          </button>
         </div>
       )}
 
